@@ -1,0 +1,118 @@
+---
+title: "Tumour Genomic Research Report"
+author: "Cris Print"
+output: html_document
+---
+
+<link rel="stylesheet" type="text/css" href="http://cdn.datatables.net/1.10.5/css/jquery.dataTables.min.css">
+<script src="http://code.jquery.com/jquery-2.1.2.min.js"></script>
+<script src="http://cdn.datatables.net/1.10.5/js/jquery.dataTables.min.js"></script>
+
+<script type="text/javascript">
+         $(document).ready(function() {
+             $(".dtable").DataTable();
+         } );
+</script>
+
+```{r setup, include=FALSE}
+opts_chunk$set(dev = 'pdf')
+```
+
+```{r, echo=FALSE}
+suppressWarnings(suppressPackageStartupMessages(library(knitr)))
+suppressWarnings(suppressPackageStartupMessages(library(markdown)))
+suppressWarnings(suppressPackageStartupMessages(library(rmarkdown)))
+suppressWarnings(suppressPackageStartupMessages(library(dplyr)))
+suppressWarnings(suppressPackageStartupMessages(library(ggplot2)))
+suppressWarnings(suppressPackageStartupMessages(library(kableExtra)))
+```
+
+# `r Text1a`
+
+<br>
+
+### `r Text1b`
+
+<br><br>
+
+------
+
+## Somatic Variants that pass filtering
+<br>
+`r 
+if(is.vector(S.filtered.table)){
+S.filtered.table} else {
+S.filtered.table %>% mutate(Gene=paste0("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene=",Gene,"'>",Gene,"</a>")) %>% mutate(IGV=paste0("<a href='http://localhost:60151/goto?locus=",IGV,"'>",IGV,"</a>")) %>%
+    knitr::kable("html", table.attr = "class='dtable'", escape=F) %>% kable_styling(bootstrap_options = "striped")
+}
+`
+<br>
+`r Text0`
+<br><br>
+
+------
+
+
+<br><br>
+
+## Autosomal aneuploidy graphs (B-allele ferequency)
+<br>
+```{r, echo=FALSE, out.width = "900px", out.height= "350px"}
+knitr::include_graphics(TT.image)
+```
+
+------
+
+<br><br>
+
+## Germline Variants that pass filtering
+### (low stringency filters used. Only genes on clinician-supplied lists included)
+<br>
+`r 
+if(is.vector(G.filtered.table)){
+G.filtered.table} else {
+G.filtered.table %>% mutate(ToIGV=paste0("<a href='http://localhost:60151/goto?locus=",ToIGV,"'>",ToIGV,"</a>")) %>% mutate(Gene=paste0("<a href='https://www.genecards.org/cgi-bin/carddisp.pl?gene=",Gene,"'>",Gene,"</a>")) %>% mutate(dbSNP147=paste0("<a href='https://www.ncbi.nlm.nih.gov/snp/",dbSNP147,"'>",dbSNP147,"</a>")) %>% knitr::kable("html", table.attr = "class='dtable'", escape=F) %>% kable_styling(bootstrap_options = "striped")
+}
+`
+<br>
+
+------
+
+
+## Cancer Genome Interpreter recommendations related in any way to Somatic Variants that pass filtering (from late trials and guidelines only, amplification, fusion, overexpression and deletion are excluded).
+<br>
+`r 
+if(is.vector(SCGId.table)){
+SCGId.table} else {
+knitr::kable(SCGId.table[,3:6]) %>% kable_styling(bootstrap_options = "striped")
+}
+`
+<br><br>
+
+
+### Somatic filters used
+`r 
+SomRulesText2
+`
+
+<br>
+
+`r 
+knitr::kable(SomRulesText1)
+`
+
+### Germline filters used
+`r 
+GLRulesText2
+`
+
+<br>
+
+`r 
+knitr::kable(GLRulesText1)
+`
+<br>
+
+#### Not for clinical use. Analysis calibrated for research.
+
+
