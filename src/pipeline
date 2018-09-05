@@ -1,0 +1,8 @@
+hello = {
+  exec "Rscript countSomatic.R  - $input > $output"
+}
+world = {
+    exec "echo World | cat $input - > $output"
+}
+
+run { hello  }
