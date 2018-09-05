@@ -1,8 +1,16 @@
-hello = {
-  exec "Rscript countSomatic.R  - $input > $output"
+qc = {
+    exec "fastqc_array.sl "
 }
-world = {
+
+count = {
+  exec "Rscript filePairs.R  - $input > $output"
+}
+merge = {
+   exec "Rscript merge.R"
+} 
+	
+report = {
     exec "echo World | cat $input - > $output"
 }
 
-run { hello  }
+run {qc}
