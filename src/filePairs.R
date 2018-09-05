@@ -1,9 +1,12 @@
+#source("https://bioconductor.org/biocLite.R")
+
 suppressMessages(library("VariantAnnotation"))
 suppressMessages(library("tidyverse"))
 suppressMessages(library("here"))
 suppressMessages(library("httr"))
-library("jsonlite")
-library("reticulate")
+suppressMessages(library("jsonlite"))
+suppressMessages(library("reticulate"))
+
 
 
 ## Data location
@@ -14,13 +17,15 @@ library("reticulate")
 # data location. Files should be paired bzip and corresponding tbi file with
 # sample name at the beginning of the file name.
 # trailing / is required.
+here()
 
-dataLocation = "/nesi/project/uoa00571/pan_project/scripts/reportGeneration/data/toBeProcessed/"
-files = list.files(dataLocation, pattern="*.gz")
+dataLocation = "/home/ben/workspace/prosper/data/toBeProcessed/"
+files = list.files(dataLocation, pattern="*.gz$")
 
 sampleNames = unlist(lapply(files, function(x) strsplit(x, "\\.")[[1]][1]))
 sampleNames =(unique(sampleNames))
 sampleFiles = list.files(dataLocation, pattern=paste0(sampleNames[1],".*anno.*.gz$"))
+
 
 tbiFile=paste0(dataLocation,sampleFiles[1],".tbi")
 
@@ -54,7 +59,7 @@ print(rownames(files.df))
 ## Filters
 ## This section sets up pre filters and filters to isolate the desired variant calls
 
-metadata = read_tsv("../data/metadata.txt", col_types = cols())
+metadata = read_tsv("data/metadata.txt", col_types = cols())
 mgl = metadata$Michelle.gene.list[!is.na(metadata$Michelle.gene.list)] # define Michelle's gene list
 geneList = paste(mgl,collapse="|")
 
@@ -91,17 +96,25 @@ FF = FilterRules(list(geneFilter, infoFilter, genoFilter ))
 ## This section goes through the data frame holding the file locations, row by row, 
 ## filters, then extracts the data required for the report, returning a dataframe. 
 
-report.df = read_csv("../data/reportColumns.csv")
+report.df = read_csv("data/reportColumns.csv")
 infoVariables = report.df %>%
     filter(location == "info")
 
+report.df$variable
 print(infoVariables)
- 
+#genoVariables = 
+thing=mcols(rowRanges(vcf))
+thing
+thing=as.tibble(rowRanges(vcf))
+thing$ALT[1]$seq
+class(thing$ALT[1])
+
+report.df$location
+
 for(i in 1:nrow(files.df)) {
     row <- files.df[i,]
     filt2 <- filterVcf(row$snps, "hg19", tempfile(), filters = FF, prefilters = PF )
     vcf = readVcf(filt2)
-    #geno.df = as.DataFrame(geno(vcf), row.names=NULL)
     info.df = as(info(vcf), "DataFrame")
     info.df=as.tibble(info.df)
     info.df = as.tibble(info.df, rownames=NULL) %>%
@@ -109,18 +122,28 @@ for(i in 1:nrow(files.df)) {
          map(function(x) unlist(lapply(x, '[', 1))) %>%
          as.tibble() 
     colnames(info.df) =  infoVariables$name
- #  info.df$Mutation_type = "snp"
+    info.df$Mutation_type = "snp"
+    
+    ranges = rowRanges(vcf)
+    info.df$num_Germline_ALT_reads = as.character(unlist(ranges$ALT))
+    info.df$num_Germline_REF_reads = as.character(ranges$REF)
+
+    
+    #geno.df = as.DataFrame(geno(vcf), row.names=NULL)
     #geno.df = as.tibble(geno.df) %>%
     #     select(one_of(infoVariables$variable))  %>%
     #     map(function(x) unlist(lapply(x, '[', 1))) %>%
     #     as.tibble()
- 
 
 }
-info.df$sample=paste0(rownames(files.df[i,]),"_",names(rowRanges(vcf)))
+
+ranges[1,1:10]
+mcols(ranges)["sampleNames"]
+
+#info.df$sample=paste0(rownames(files.df[i,]),"_",names(rowRanges(vcf)))
 #print(head(info.df))
 
-
+range=rowRanges(vcf)
 
 
 mutations.df = data.frame(chr = seqnames(rowRanges(vcf)), pos=start(rowRanges(vcf)), ref = mcols(rowRanges(vcf))$REF, alt = unlist(mcols(rowRanges(vcf))$ALT), sample=paste0(rownames(files.df[i,]),"_",names(rowRanges(vcf))) )
@@ -128,7 +151,7 @@ write_tsv(mutations.df, "mutations.tsv")
 
  
 ### Request information from the Cancer Genome Interpreter. 
-source_python("cgi.py")
+source_python("/home/ben/workspace/prosper/src/cgi.py")
 
 ## merge mutation analysis from CGI with the information data frame. 
 CGI = read_tsv("mutation_analysis.tsv") %>%
@@ -136,6 +159,7 @@ CGI = read_tsv("mutation_analysis.tsv") %>%
     rename_at(vars(colnames(.)), ~ c("sample", "CGI_gene","CGI_cDNA","CGI_protein", "CGI_consequences", "CGI_CADD_Phed", "CGI_annotation", "CGI_driver")) %>%
     mutate_all(as.character)
 
+
 merged = merge(as.data.frame(info.df), CGI)
-
-
+info.df
+geno(vcf)

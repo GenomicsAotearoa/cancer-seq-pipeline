@@ -27,11 +27,11 @@ suppressWarnings(suppressPackageStartupMessages(library(ggplot2)))
 suppressWarnings(suppressPackageStartupMessages(library(kableExtra)))
 ```
 
-# `r Text1a`
+# `r title`
 
 <br>
 
-### `r Text1b`
+### `r prepDate`
 
 <br><br>
 
@@ -47,7 +47,7 @@ S.filtered.table %>% mutate(Gene=paste0("<a href='https://www.genecards.org/cgi-
 }
 `
 <br>
-`r Text0`
+`r notes`
 <br><br>
 
 ------
