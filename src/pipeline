@@ -1,5 +1,8 @@
 qc = {
-    exec "fastqc_array.sl "
+    exec "bash ./fastqc_array.sl $input "
+}
+trim = {
+    exec "trimGalore_array.sl $input"
 }
 
 count = {
@@ -13,4 +16,4 @@ report = {
     exec "echo World | cat $input - > $output"
 }
 
-run {qc}
+run {trim}
