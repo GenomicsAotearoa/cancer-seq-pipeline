@@ -1,9 +1,54 @@
+bwaIndex="/nesi/project/uoa00571/hg19/ucsc.hg19.fasta"
+threads="8"
+
 qc = {
     exec "bash ./fastqc_array.sl $input "
 }
+
+
 trim = {
-    exec "trimGalore_array.sl $input"
+
+	multi "module load TrimGalore",
+		"trim_galore -q 30 --length 50 --paired $input1.gz $input2.gz > $output.gz ",
+		"rename 's/_val_1.fq.gz/.fastq.trim.gz/' *",
+                "rename 's/_val_2.fq.gz/.fastq.trim.gz/' *"
+	for(i in outputs) {
+            exec "echo $i "
+        }
 }
+
+align = { 
+    // align the tumour sample
+    multi "bwa mem  -t 8 $bwaIndex $input1 $input2 > $output1",
+        "bwa mem  -t 8 $bwaIndex $input3 $input4 > $output2"
+        
+    multi "samtools sort -@8 -O BAM -o $output1.bam $output1",
+        "samtools sort -@8 -O BAM -o $output2.bam $output2"
+
+
+}
+
+removeDuplicates = {
+    multi "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input1.bam O=$output1.bam M=$output.prefix_dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE",
+        "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input2.bam O=$output2.bam M=$output.prefix_dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE"
+}
+
+
+removeSuppplementary = {
+    multi "samtools view -@ 4 -b -F 2048 $input1.bam > $output1.bam",
+        "samtools view -@ 4 -b -F 2048 $input2.bam > $output2.bam"
+    multi "samtools index $output1.bam",
+        "samtools index $output2.bam"
+    
+}
+
+variantCalling = {
+    VARSCAN="/nesi/project/uoa00571/software/VarScan.v2.4.3.jar"
+    exec "samtools mpileup -B -d 9000 -q 1 -f $bwaIndex -o $output $input1.bam $input2.bam"
+
+    exec "java -Xmx8g -jar $VARSCAN somatic --mpileup 1 --output-snp $output.vcf $output"
+}
+
 
 count = {
   exec "Rscript filePairs.R  - $input > $output"
@@ -16,4 +61,5 @@ report = {
     exec "echo World | cat $input - > $output"
 }
 
-run {trim}
+run{trim}
+//run {align + removeDuplicates + removeSuppplementary + variantCalling}
