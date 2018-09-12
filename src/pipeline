@@ -1,3 +1,12 @@
+// Trial pipeline
+// Needs cutdapt, samtools, bwa, picard, java, varscan2, fastqc
+// Various parameters on some things need to be set (i.e. varscan2 working, not completely as it should
+// Annotation step needs to be added. 
+// Report generation function to be added (soon)
+// Need to figure out how to put intermediate files somewhere tidy. 
+
+// input is 4 *.fastq.gz files. 2 sets of paired end files, one for tumour, one for normal.
+
 bwaIndex="/nesi/project/uoa00571/hg19/ucsc.hg19.fasta"
 threads="8"
 
@@ -7,30 +16,30 @@ qc = {
 
 
 trim = {
-
-	multi "module load TrimGalore",
-		"trim_galore -q 30 --length 50 --paired $input1.gz $input2.gz > $output.gz ",
-		"rename 's/_val_1.fq.gz/.fastq.trim.gz/' *",
-                "rename 's/_val_2.fq.gz/.fastq.trim.gz/' *"
-	for(i in outputs) {
-            exec "echo $i "
-        }
+    // this assumes that the input is illumina, as we're not autodetecting across a variety of possible adapters,
+    // which would be possible with trim_glaore, but that requires changes to trim_galores output methods. 
+    multi "cutadapt -a AGATCGGAAGAGC -q 30 --minimum-length=50 -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz",
+        "cutadapt -a AGATCGGAAGAGC -q 30 --minimum-length=50 -o $output3 -p $output4 $input3 $input4"
+    output.dir="../data/intermediateFiles"
 }
 
 align = { 
-    // align the tumour sample
+    // align the tumour sample and the 
     multi "bwa mem  -t 8 $bwaIndex $input1 $input2 > $output1",
         "bwa mem  -t 8 $bwaIndex $input3 $input4 > $output2"
         
     multi "samtools sort -@8 -O BAM -o $output1.bam $output1",
         "samtools sort -@8 -O BAM -o $output2.bam $output2"
 
+    output.dir="../data/intermediateFiles"
 
 }
 
 removeDuplicates = {
     multi "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input1.bam O=$output1.bam M=$output.prefix_dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE",
         "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input2.bam O=$output2.bam M=$output.prefix_dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE"
+    output.dir="../data/intermediateFiles"
+
 }
 
 
@@ -39,6 +48,8 @@ removeSuppplementary = {
         "samtools view -@ 4 -b -F 2048 $input2.bam > $output2.bam"
     multi "samtools index $output1.bam",
         "samtools index $output2.bam"
+    output.dir="../data/intermediateFiles"
+
     
 }
 
@@ -47,6 +58,8 @@ variantCalling = {
     exec "samtools mpileup -B -d 9000 -q 1 -f $bwaIndex -o $output $input1.bam $input2.bam"
 
     exec "java -Xmx8g -jar $VARSCAN somatic --mpileup 1 --output-snp $output.vcf $output"
+
+    output.dir="../data/intermediateFiles"
 }
 
 
@@ -61,5 +74,9 @@ report = {
     exec "echo World | cat $input - > $output"
 }
 
-run{trim}
-//run {align + removeDuplicates + removeSuppplementary + variantCalling}
+// currently runs qc, doesn't wait for confirmation on whether to continue the run, 
+// trims, and does a 2nd lot of qc to the trimmed reads. 
+// Once this is parrallelized, should be able to insert multiqc steps. 
+
+run {qc + trim + [qc + align] + removeDuplicates + removeSuppplementary + variantCalling}
+
