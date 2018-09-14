@@ -1,5 +1,5 @@
 // Trial pipeline
-// Needs cutdapt, samtools, bwa, picard, java, varscan2, fastqc
+// Needs cutdapt, samtools, bwa, picard, java, varscan2, fastqc, bedtools
 // Various parameters on some things need to be set (i.e. varscan2 working, not completely as it should
 // Annotation step needs to be added. 
 // Report generation function to be added (soon)
@@ -11,7 +11,11 @@ bwaIndex="/nesi/project/uoa00571/hg19/ucsc.hg19.fasta"
 threads="8"
 
 qc = {
-    exec "bash ./fastqc_array.sl $input "
+    exec "module load FastQC"
+    multi "fastqc -t 1 $input1 -o fastqc_out/",
+        "fastqc -t 1 $input2 -o fastqc_out/",
+        "fastqc -t 1 $input3 -o fastqc_out/",
+        "fastqc -t 1 $input4 -o fastqc_out/"
 }
 
 
@@ -20,25 +24,23 @@ trim = {
     // which would be possible with trim_glaore, but that requires changes to trim_galores output methods. 
     multi "cutadapt -a AGATCGGAAGAGC -q 30 --minimum-length=50 -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz",
         "cutadapt -a AGATCGGAAGAGC -q 30 --minimum-length=50 -o $output3 -p $output4 $input3 $input4"
-    output.dir="../data/intermediateFiles"
 }
 
 align = { 
     // align the tumour sample and the 
+    exec "module load SAMtools"
     multi "bwa mem  -t 8 $bwaIndex $input1 $input2 > $output1",
         "bwa mem  -t 8 $bwaIndex $input3 $input4 > $output2"
         
     multi "samtools sort -@8 -O BAM -o $output1.bam $output1",
         "samtools sort -@8 -O BAM -o $output2.bam $output2"
 
-    output.dir="../data/intermediateFiles"
 
 }
 
 removeDuplicates = {
     multi "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input1.bam O=$output1.bam M=$output.prefix_dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE",
         "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input2.bam O=$output2.bam M=$output.prefix_dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE"
-    output.dir="../data/intermediateFiles"
 
 }
 
@@ -48,20 +50,34 @@ removeSuppplementary = {
         "samtools view -@ 4 -b -F 2048 $input2.bam > $output2.bam"
     multi "samtools index $output1.bam",
         "samtools index $output2.bam"
-    output.dir="../data/intermediateFiles"
 
     
 }
 
-variantCalling = {
-    VARSCAN="/nesi/project/uoa00571/software/VarScan.v2.4.3.jar"
+pileUp = {
     exec "samtools mpileup -B -d 9000 -q 1 -f $bwaIndex -o $output $input1.bam $input2.bam"
-
-    exec "java -Xmx8g -jar $VARSCAN somatic --mpileup 1 --output-snp $output.vcf $output"
-
-    output.dir="../data/intermediateFiles"
 }
 
+variantCalling = {
+    VARSCAN="/nesi/project/uoa00571/software/VarScan.v2.4.3.jar"
+    exec "java -Xmx8g -jar /nesi/project/uoa00571/software/VarScan.v2.4.3.jar somatic $input $output.prefix --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp P1017A_1.fastq.gz.align.removeDuplicates.removeSuppplementary.variantCalling.vcf"
+    exec "java -Xmx8g -jar $VARSCAN somatic --mpileup 1 --output-snp $output.vcf $output"
+
+}
+
+annotation = {
+    // load mahuika modules
+    exec "module load VCFtools/0.1.14-foss-2015a-Perl-5.22.0"
+    exec "module load SAMtools/1.6-gimkl-2017a"
+    exec "module load BEDTools/2.26.0-gimkl-2017a"
+    exec "module load Perl"
+
+
+    // Version 2 of our annotation
+    // hrms. This is in a different project. Not good for portability. 
+    exec "perl /nesi/project/uoa00562/annovar/table_annovar.pl $input /nesi/project/uoa00562/annovar/db/  -buildver hg19 -outfile $output.v2 -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput"
+
+}
 
 count = {
   exec "Rscript filePairs.R  - $input > $output"
@@ -78,5 +94,5 @@ report = {
 // trims, and does a 2nd lot of qc to the trimmed reads. 
 // Once this is parrallelized, should be able to insert multiqc steps. 
 
-run {qc + trim + [qc + align] + removeDuplicates + removeSuppplementary + variantCalling}
+run { trim +  align + removeDuplicates + removeSuppplementary + pileUp + variantCalling}
 
