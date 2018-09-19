@@ -1,9 +1,8 @@
 // Trial pipeline
-// Needs cutdapt, samtools, bwa, picard, java, varscan2, fastqc, bedtools
-// Various parameters on some things need to be set (i.e. varscan2 working, not completely as it should
-// Annotation step needs to be added. 
+// Needs cutdapt, samtools, bwa, picard, java, varscan2, fastqc, bedtools. 
+// Annovar script table_annovar.pl is a customised version of that provided with annovar, needs to replace the default version.
+//      i.e. you need to install annovar and then replace table_annovar.pl with the copy found with this pipeline
 // Report generation function to be added (soon)
-// Need to figure out how to put intermediate files somewhere tidy. 
 
 // input is 4 *.fastq.gz files. 2 sets of paired end files, one for tumour, one for normal.
 
@@ -29,8 +28,8 @@ trim = {
 align = { 
     // align the tumour sample and the 
     exec "module load SAMtools"
-    multi "bwa mem  -t 8 $bwaIndex $input1 $input2 > $output1",
-        "bwa mem  -t 8 $bwaIndex $input3 $input4 > $output2"
+    multi "bwa mem -R \"@RG\tID:${SAMPLE}_02\tSM:$SAMPLE\tLB:${SAMPLE}_02\tPL:ILLUMINA\" -t 8 $bwaIndex $input1 $input2 > $output1",
+        "bwa mem -R \"@RG\tID:${SAMPLE}_02\tSM:$SAMPLE\tLB:${SAMPLE}_02\tPL:ILLUMINA\" -t 8 $bwaIndex $input3 $input4 > $output2"
         
     multi "samtools sort -@8 -O BAM -o $output1.bam $output1",
         "samtools sort -@8 -O BAM -o $output2.bam $output2"
@@ -39,8 +38,8 @@ align = {
 }
 
 removeDuplicates = {
-    multi "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input1.bam O=$output1.bam M=$output.prefix_dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE",
-        "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input2.bam O=$output2.bam M=$output.prefix_dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE"
+    multi "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input1.bam O=$output1.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE",
+        "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input2.bam O=$output2.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE"
 
 }
 
@@ -59,40 +58,38 @@ pileUp = {
 }
 
 variantCalling = {
+    // someone should try to remember that output1 is snps, output2 is indels
     VARSCAN="/nesi/project/uoa00571/software/VarScan.v2.4.3.jar"
-    exec "java -Xmx8g -jar /nesi/project/uoa00571/software/VarScan.v2.4.3.jar somatic $input $output.prefix --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp P1017A_1.fastq.gz.align.removeDuplicates.removeSuppplementary.variantCalling.vcf"
-    exec "java -Xmx8g -jar $VARSCAN somatic --mpileup 1 --output-snp $output.vcf $output"
-
+    exec "java -Xmx8g -jar /nesi/project/uoa00571/software/VarScan.v2.4.3.jar somatic $input --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output1.vcf  --output-indel $output2.vcf"
 }
 
 annotation = {
-    // load mahuika modules
-    exec "module load VCFtools/0.1.14-foss-2015a-Perl-5.22.0"
-    exec "module load SAMtools/1.6-gimkl-2017a"
+    // load mahuika modules - the bpipe config method of doing this doesn't appear to be working. Or I'm doing it wrong (more likely)
+    exec "module load VCFtools"
+    exec "module load SAMtools"
     exec "module load BEDTools/2.26.0-gimkl-2017a"
     exec "module load Perl"
 
 
     // Version 2 of our annotation
-    // hrms. This is in a different project. Not good for portability. 
-    exec "perl /nesi/project/uoa00562/annovar/table_annovar.pl $input /nesi/project/uoa00562/annovar/db/  -buildver hg19 -outfile $output.v2 -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput"
+    multi "perl table_annovar.pl $input ../data/annovar/db/  -buildver hg19 -outfile $output.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput",
+    "perl table_annovar.pl $input2 ../data/annovar/db/  -buildver hg19 -outfile $output2.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput"
+
+    // remove all the intermediate files
+    cleanup "*.pileUp"
+    cleanup "*.bam"
 
 }
 
-count = {
-  exec "Rscript filePairs.R  - $input > $output"
-}
-merge = {
-   exec "Rscript merge.R"
-} 
-	
-report = {
-    exec "echo World | cat $input - > $output"
-}
+
 
 // currently runs qc, doesn't wait for confirmation on whether to continue the run, 
 // trims, and does a 2nd lot of qc to the trimmed reads. 
 // Once this is parrallelized, should be able to insert multiqc steps. 
 
-run { trim +  align + removeDuplicates + removeSuppplementary + pileUp + variantCalling}
+// run with qc
+//run { [qc + trim] +  [qc + align] + removeDuplicates + removeSuppplementary + pileUp + variantCalling + annotation}
+
+// run without qc
+run { trim +  align + removeDuplicates + removeSuppplementary + pileUp + variantCalling + annotation}
 
