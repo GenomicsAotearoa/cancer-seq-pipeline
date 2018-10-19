@@ -1,3 +1,15 @@
+## re-write of code written by Cris Print to identify mutations in a set of genes in a set of VCF files at low stringency
+
+## Comments by Ben : ##
+
+
+args <- commandArgs(trailingOnly = TRUE)
+snpsCF=args[1]
+indelVCF=args[2]
+out1=args[3]
+out2=args[4]
+
+
 #source("https://bioconductor.org/biocLite.R")
 
 suppressMessages(library("VariantAnnotation"))
@@ -14,52 +26,50 @@ suppressMessages(library("reticulate"))
 ## and an associated tbi file in the same directory. If successful, it puts the full file paths
 ## into a dataframe with one row per samples.  
 
-# data location. Files should be paired bzip and corresponding tbi file with
-# sample name at the beginning of the file name.
-# trailing / is required.
+## data location. Files should be paired bzip and corresponding tbi file with
+## sample name at the beginning of the file name.
+## trailing / is required.
 here()
 
-dataLocation = "/home/ben/workspace/prosper/data/toBeProcessed/"
-files = list.files(dataLocation, pattern="*.gz$")
+dataLocation = "data.raw"
+#files = list.files(dataLocation, pattern="*.gz$")
+#files = list(rawVCFfile)
+#sampleNames = unlist(lapply(files, function(x) strsplit(x, "\\.")[[1]][1]))
+#sampleNames =(unique(sampleNames))
+#sampleFiles = list.files(dataLocation, pattern=paste0(sampleNames[1],".*anno.*.gz$"))
+#tbiFile=paste0(sampleFiles[1],".tbi")
 
-sampleNames = unlist(lapply(files, function(x) strsplit(x, "\\.")[[1]][1]))
-sampleNames =(unique(sampleNames))
-sampleFiles = list.files(dataLocation, pattern=paste0(sampleNames[1],".*anno.*.gz$"))
+#files.df = data.frame(row.names=sampleNames, snps = character(length(sampleNames)),indels = character(length(sampleNames)), stringsAsFactors=FALSE)
 
-
-tbiFile=paste0(dataLocation,sampleFiles[1],".tbi")
-
-files.df = data.frame(row.names=sampleNames, snps = character(length(sampleNames)),indels = character(length(sampleNames)), stringsAsFactors=FALSE)
-
-for (sample in sampleNames){
-    snpFile = paste0(dataLocation, list.files(dataLocation, pattern=paste0(sample,".snp.*anno.*.gz$")))
-    indelFile = paste0(dataLocation, list.files(dataLocation, pattern=paste0(sample,".indel.*anno.*.gz$")))
+#for (sample in sampleNames){
+    #snpFile = paste0(dataLocation, list.files(dataLocation, pattern=paste0(sample,".snp.*anno.*.gz$")))
+    #indelFile = paste0(dataLocation, list.files(dataLocation, pattern=paste0(sample,".indel.*anno.*.gz$")))
+#    snpFile = files[1] 
+    #tbiFile=paste0(snpFile,".tbi")
     
-    tbiFile=paste0(snpFile,".tbi")
-    
-    if (!file_test("-f", snpFile)){
-        print(paste0("No snp vcf file for ", sample, " cannot be found in the data directory"))
-    }else if (!file_test("-f", tbiFile)){
-        print(paste0("The corresponding tbi file for ", sample, " snps, cannot be found in the data directory"))
-    }else{
-        files.df[sample,]$snps = snpFile
-    }
+    #if (!file_test("-f", snpFile)){
+    #    print(paste0("No snp vcf file for ", sample, " cannot be found in the data directory"))
+    #}#else if (!file_test("-f", tbiFile)){
+     #   print(paste0("The corresponding tbi file for ", sample, " snps, cannot be found in the data directory"))
+    #}else{
+    #    files.df[sample,]$snps = snpFile
+    #}
        
-    tbiFile=paste0(indelFile,".tbi") 
-    if (!file_test("-f", indelFile)){
-        print(paste0("No indel vcf file for ", sample, " cannot be found in the data directory"))
-    }else if (!file_test("-f", tbiFile)){
-        print(paste0("The corresponding tbi file for ", sample, " indels, cannot be found in the data directory"))
-    }else{
-        files.df[sample,]$indels = snpFile
-    }
-}
-print(rownames(files.df))
-
+    #tbiFile=paste0(indelFile,".tbi") 
+    #if (!file_test("-f", indelFile)){
+    #    print(paste0("No indel vcf file for ", sample, " cannot be found in the data directory"))
+    #}else if (!file_test("-f", tbiFile)){
+    #    print(paste0("The corresponding tbi file for ", sample, " indels, cannot be found in the data directory"))
+    #}else{
+    #    files.df[sample,]$indels = snpFile
+    #}
+#}
+#print(rownames(files.df))
 ## Filters
 ## This section sets up pre filters and filters to isolate the desired variant calls
 
-metadata = read_tsv("data/metadata.txt", col_types = cols())
+
+metadata = read_tsv("../data/metadata.txt", col_types = cols())
 mgl = metadata$Michelle.gene.list[!is.na(metadata$Michelle.gene.list)] # define Michelle's gene list
 geneList = paste(mgl,collapse="|")
 
@@ -96,23 +106,23 @@ FF = FilterRules(list(geneFilter, infoFilter, genoFilter ))
 ## This section goes through the data frame holding the file locations, row by row, 
 ## filters, then extracts the data required for the report, returning a dataframe. 
 
-report.df = read_csv("data/reportColumns.csv")
+report.df = read_csv("../data/reportColumns.csv")
 infoVariables = report.df %>%
     filter(location == "info")
 
-report.df$variable
-print(infoVariables)
+#report.df$variable
+#print(infoVariables)
 #genoVariables = 
-thing=mcols(rowRanges(vcf))
-thing
-thing=as.tibble(rowRanges(vcf))
-thing$ALT[1]$seq
-class(thing$ALT[1])
+#thing=mcols(rowRanges(vcf))
+#thing
+#thing=as.tibble(rowRanges(vcf))
+#thing$ALT[1]$seq
+#class(thing$ALT[1])
 
-report.df$location
+#report.df$location
 
 for(i in 1:nrow(files.df)) {
-    row <- files.df[i,]
+    row = files.df[i,]
     filt2 <- filterVcf(row$snps, "hg19", tempfile(), filters = FF, prefilters = PF )
     vcf = readVcf(filt2)
     info.df = as(info(vcf), "DataFrame")
@@ -147,7 +157,7 @@ range=rowRanges(vcf)
 
 
 mutations.df = data.frame(chr = seqnames(rowRanges(vcf)), pos=start(rowRanges(vcf)), ref = mcols(rowRanges(vcf))$REF, alt = unlist(mcols(rowRanges(vcf))$ALT), sample=paste0(rownames(files.df[i,]),"_",names(rowRanges(vcf))) )
-write_tsv(mutations.df, "mutations.tsv")
+#write_tsv(mutations.df, "mutations.tsv")
 
  
 ### Request information from the Cancer Genome Interpreter. 
@@ -161,5 +171,5 @@ CGI = read_tsv("mutation_analysis.tsv") %>%
 
 
 merged = merge(as.data.frame(info.df), CGI)
-info.df
-geno(vcf)
+#info.df
+#geno(vcf)
