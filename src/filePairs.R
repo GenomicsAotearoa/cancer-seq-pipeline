@@ -29,45 +29,11 @@ suppressMessages(library("reticulate"))
 ## data location. Files should be paired bzip and corresponding tbi file with
 ## sample name at the beginning of the file name.
 ## trailing / is required.
+snpVCF = "tmp/P1017A_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam.variantCalling.annotation.vcf.gz"
+indelVCF = "tmp/P1017A_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam.variantCalling.2.annotation.vcf.gz"
+
+
 here()
-
-dataLocation = "data.raw"
-#files = list.files(dataLocation, pattern="*.gz$")
-#files = list(rawVCFfile)
-#sampleNames = unlist(lapply(files, function(x) strsplit(x, "\\.")[[1]][1]))
-#sampleNames =(unique(sampleNames))
-#sampleFiles = list.files(dataLocation, pattern=paste0(sampleNames[1],".*anno.*.gz$"))
-#tbiFile=paste0(sampleFiles[1],".tbi")
-
-#files.df = data.frame(row.names=sampleNames, snps = character(length(sampleNames)),indels = character(length(sampleNames)), stringsAsFactors=FALSE)
-
-#for (sample in sampleNames){
-    #snpFile = paste0(dataLocation, list.files(dataLocation, pattern=paste0(sample,".snp.*anno.*.gz$")))
-    #indelFile = paste0(dataLocation, list.files(dataLocation, pattern=paste0(sample,".indel.*anno.*.gz$")))
-#    snpFile = files[1] 
-    #tbiFile=paste0(snpFile,".tbi")
-    
-    #if (!file_test("-f", snpFile)){
-    #    print(paste0("No snp vcf file for ", sample, " cannot be found in the data directory"))
-    #}#else if (!file_test("-f", tbiFile)){
-     #   print(paste0("The corresponding tbi file for ", sample, " snps, cannot be found in the data directory"))
-    #}else{
-    #    files.df[sample,]$snps = snpFile
-    #}
-       
-    #tbiFile=paste0(indelFile,".tbi") 
-    #if (!file_test("-f", indelFile)){
-    #    print(paste0("No indel vcf file for ", sample, " cannot be found in the data directory"))
-    #}else if (!file_test("-f", tbiFile)){
-    #    print(paste0("The corresponding tbi file for ", sample, " indels, cannot be found in the data directory"))
-    #}else{
-    #    files.df[sample,]$indels = snpFile
-    #}
-#}
-#print(rownames(files.df))
-## Filters
-## This section sets up pre filters and filters to isolate the desired variant calls
-
 
 metadata = read_tsv("../data/metadata.txt", col_types = cols())
 mgl = metadata$Michelle.gene.list[!is.na(metadata$Michelle.gene.list)] # define Michelle's gene list
@@ -110,58 +76,52 @@ report.df = read_csv("../data/reportColumns.csv")
 infoVariables = report.df %>%
     filter(location == "info")
 
-#report.df$variable
-#print(infoVariables)
-#genoVariables = 
-#thing=mcols(rowRanges(vcf))
-#thing
-#thing=as.tibble(rowRanges(vcf))
-#thing$ALT[1]$seq
-#class(thing$ALT[1])
-
-#report.df$location
-
-for(i in 1:nrow(files.df)) {
-    row = files.df[i,]
-    filt2 <- filterVcf(row$snps, "hg19", tempfile(), filters = FF, prefilters = PF )
-    vcf = readVcf(filt2)
-    info.df = as(info(vcf), "DataFrame")
-    info.df=as.tibble(info.df)
-    info.df = as.tibble(info.df, rownames=NULL) %>%
-         dplyr::select(one_of(infoVariables$variable))  %>%
-         map(function(x) unlist(lapply(x, '[', 1))) %>%
-         as.tibble() 
-    colnames(info.df) =  infoVariables$name
-    info.df$Mutation_type = "snp"
-    
-    ranges = rowRanges(vcf)
-    info.df$num_Germline_ALT_reads = as.character(unlist(ranges$ALT))
-    info.df$num_Germline_REF_reads = as.character(ranges$REF)
-
-    
-    #geno.df = as.DataFrame(geno(vcf), row.names=NULL)
-    #geno.df = as.tibble(geno.df) %>%
-    #     select(one_of(infoVariables$variable))  %>%
-    #     map(function(x) unlist(lapply(x, '[', 1))) %>%
-    #     as.tibble()
-
-}
-
-ranges[1,1:10]
-mcols(ranges)["sampleNames"]
-
-#info.df$sample=paste0(rownames(files.df[i,]),"_",names(rowRanges(vcf)))
-#print(head(info.df))
-
-range=rowRanges(vcf)
 
 
-mutations.df = data.frame(chr = seqnames(rowRanges(vcf)), pos=start(rowRanges(vcf)), ref = mcols(rowRanges(vcf))$REF, alt = unlist(mcols(rowRanges(vcf))$ALT), sample=paste0(rownames(files.df[i,]),"_",names(rowRanges(vcf))) )
-#write_tsv(mutations.df, "mutations.tsv")
+snpFilter = filterVcf(snpVCF , "hg19", tempfile(), filters = FF, prefilters = PF )
+indelFilter = filterVcf(indelVCF , "hg19" , tempfile(), filters = FF, prefilters = PF )
+
+snps = readVcf(snpFilter)
+indels = readVcf(indelFilter) 
+
+
+snp.info = as(info(snps),"DataFrame")
+snp.info=as.tibble(snp.info)
+snp.info = as.tibble(snp.info, rownames=NULL) %>%
+    dplyr::select(one_of(infoVariables$variable))  %>%
+    map(function(x) unlist(lapply(x, '[', 1))) %>%
+    as.tibble() 
+colnames(snp.info) =  infoVariables$name
+snp.info$Mutation_type = "snp"
+snp.ranges = rowRanges(snps)
+snp.info$num_Germline_ALT_reads = as.character(unlist(snp.ranges$ALT))
+snp.info$num_Germline_REF_reads = as.character(snp.ranges$REF)
+snp.info$sample=paste0("sample","_",names(rowRanges(snps)))
+
+
+indels.info = as(info(indels),"DataFrame")
+indels.info=as.tibble(indels.info)
+indels.info = as.tibble(indels.info, rownames=NULL) %>%
+    dplyr::select(one_of(infoVariables$variable))  %>%
+    map(function(x) unlist(lapply(x, '[', 1))) %>%
+    as.tibble()
+colnames(indels.info) =  infoVariables$name
+indels.info$Mutation_type = "indel"
+indels.ranges = rowRanges(indels)
+indels.info$num_Germline_ALT_reads = as.character(unlist(indels.ranges$ALT))
+indels.info$num_Germline_REF_reads = as.character(indels.ranges$REF)
+indels.info$sample=paste0("sample","_",names(rowRanges(indels)))
+
+mutations.info = rbind(snp.info, indels.info)
+
+snpMutations.df = data.frame(chr = seqnames(rowRanges(snps)), pos=start(rowRanges(snps)), ref = mcols(rowRanges(snps))$REF, alt = unlist(mcols(rowRanges(snps))$ALT), sample=paste0("sample","_",names(rowRanges(snps))) )
+indelMutations.df = data.frame(chr = seqnames(rowRanges(indels)), pos=start(rowRanges(indels)), ref = mcols(rowRanges(indels))$REF, alt = unlist(mcols(rowRanges(indels))$ALT), sample=paste0("sample","_",names(rowRanges(indels))) )
+mutations.df=rbind(snpMutations.df,indelMutations.df)
+write_tsv(mutations.df, "mutations.tsv")
 
  
 ### Request information from the Cancer Genome Interpreter. 
-source_python("/home/ben/workspace/prosper/src/cgi.py")
+source_python("cgi.py")
 
 ## merge mutation analysis from CGI with the information data frame. 
 CGI = read_tsv("mutation_analysis.tsv") %>%
@@ -170,6 +130,6 @@ CGI = read_tsv("mutation_analysis.tsv") %>%
     mutate_all(as.character)
 
 
-merged = merge(as.data.frame(info.df), CGI)
+merged = merge(as.data.frame(mutations.info), CGI)
 #info.df
 #geno(vcf)
