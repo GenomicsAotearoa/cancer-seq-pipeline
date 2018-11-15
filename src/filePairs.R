@@ -4,7 +4,7 @@
 
 
 args <- commandArgs(trailingOnly = TRUE)
-snpsCF=args[1]
+snpVCF=args[1]
 indelVCF=args[2]
 out1=args[3]
 out2=args[4]
@@ -29,8 +29,8 @@ suppressMessages(library("reticulate"))
 ## data location. Files should be paired bzip and corresponding tbi file with
 ## sample name at the beginning of the file name.
 ## trailing / is required.
-snpVCF = "tmp/P1017A_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam.variantCalling.annotation.vcf.gz"
-indelVCF = "tmp/P1017A_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam.variantCalling.2.annotation.vcf.gz"
+#snpVCF = "tmp/P1017A_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam.variantCalling.annotation.vcf.gz"
+#indelVCF = "tmp/P1017A_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam.variantCalling.2.annotation.vcf.gz"
 
 
 here()
