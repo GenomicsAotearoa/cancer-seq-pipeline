@@ -4,6 +4,13 @@
 ### The output of the script "Merge_Auck.data_CGI.data.R" (file named "*.WITH_CGI_NO.SUP.somatic_indel_OR_snv.txt")
 ### The germline output file 
 
+
+args <- commandArgs(trailingOnly = TRUE)
+SomFilePath=args[1]
+GLFilePath=args[2]
+out1=args[3]
+out2=args[4]
+
 ##### Put into the Images directory in same folder as this script and other input fikes the pdf B allele freq images from step 1, as well as rteh default image
 
 
@@ -21,18 +28,18 @@ suppressMessages(require(ggplot2))
 # for file in *; do mv "${file}" "${file/B allele frequency for tumour varscan-/}"; done
 # leave default image in this dir
 #SomFilePath <- list.files(path = "../data/", pattern = "WITH_CGI_NO.SUP.somatic_indel_OR_snv.txt") 
-SomFilePath="../data/2018_WITH_CGI_NO.SUP.somatic_indel_OR_snv.txt"
+#SomFilePath="../data/2018_WITH_CGI_NO.SUP.somatic_indel_OR_snv.txt"
 print(SomFilePath)
 S <- read.table(SomFilePath, skip = 0, sep = "\t", as.is = TRUE); colnames(S)<-S[1,]; S<-S[-1,]
 
 #GLFilePath <- list.files(path = "../data/", pattern = ".germline_indel_OR_snv.txt") 
-GLFilePath="../data/2018_germline_indel_OR_snv.txt"
+#GLFilePath="../data/2018_germline_indel_OR_snv.txt"
 G <- read.table(GLFilePath, skip = 0, sep = "\t", as.is = TRUE); colnames(G)<-G[1,]; G<-G[-1,]
 print(GLFilePath)
 
-SCGIFilePath <- list.files(path = "../data/", pattern = "drug_prescription.tsv") 
+SCGIFilePath <- list.files(path = "../src/", pattern = "drug_prescription.tsv") 
 print(SCGIFilePath)
-SCGIFilePath="../data/drug_prescription.tsv"
+SCGIFilePath="../src/drug_prescription.tsv"
 SCGI <- read.table(SCGIFilePath, skip = 0, sep = "\t", as.is = TRUE); colnames(SCGI)<-SCGI[1,]; SCGI <-SCGI[-1,]
 
 e1<-lapply(strsplit(SCGI$SAMPLE,"varscan-"), `[`, 2); e1<-lapply(strsplit(as.character(e1),".snp"), `[`, 1)
