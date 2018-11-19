@@ -85,8 +85,8 @@ annotation = {
 
 
     // Version 2 of our annotation
-    multi "perl table_annovar.pl $input ../data/annovar/db/  -buildver hg19 -outfile $output.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput",
-    "perl table_annovar.pl $input2 ../data/annovar/db/  -buildver hg19 -outfile $output2.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput"
+    multi "perl ../src/table_annovar.pl $input ../data/annovar/db/  -buildver hg19 -outfile $output.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput",
+    "perl ../src/table_annovar.pl $input2 ../data/annovar/db/  -buildver hg19 -outfile $output2.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput"
 
    // remove the intermediate files to save space
    // cleanup "*.pileUp"
