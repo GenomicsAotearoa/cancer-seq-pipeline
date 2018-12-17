@@ -1,0 +1,658 @@
+ACMG.genes	cosmic_10Nov17_somatic	cosmic_10Nov17_germline	NET_list	Targetv3_list	Nimblegen_Cancer_list	twelve.som.indel.recurrent	twelve.som.snp.recurrent	twelve.germ.indel.recurrent	twelve.germ.snp.recurrent	Michelle.gene.list
+BRCA2	Gene Symbol	ALK	APC	ABL1	ABCC6	TPR	SENCR	NOTCH3	HMGN2	APC
+TP53	A1CF	APC	APOBEC	ALK	ABI1	KIT	KRT15	POM121L8P	ROCK1P1	ATM
+STK11	ABI1	APOBEC3B	ARID1A	ROS1	ABL1	COL23A1	SSX1	CHIC2	KRT18	BARD1
+MLH1	ABL1	AR	ATRX	BCL2	ABL2	MIR548F1	OPTN	NOTCH2	NUTM2D	BLM
+MSH2	ABL2	ATM	BCOR	RARA	ACSL3		ACSL6	FARS2	BCRP2	BMPR1A
+MSH6	ACKR3	ATR	BRCA1	CTNNB1	ACSL6		KAT6A		PLK1	BRCA1
+PMS2	ACSL3	AXIN2	BRCA2	ASXL1	AFF1		FANCD2		POM121L1P	BRCA2
+APC	ACSL6	BAP1	CDC42BPB	TET2	AFF3		BRCA1		POM121L8P	BRIP1
+MUTYH	ACVR1	BARD1	DAXX	IDH1	AFF4		THRAP3		FLCN	CDH1
+VHL	ACVR2A	BLM	DEPDC5	IDH2	AIP		FLT3		BAGE2	CDK4
+MEN1	AFF1	BMPR1A	DIS3L2	MLH1	AKAP9		MYH9		PDE4DIP	CDKN2A
+RET	AFF3	BRCA1	DST	MSH2	AKT1		PDE4DIP		MLF1	CHEK2
+BRCA1	AFF4	BRCA2	EGFR	MSH6	AKT2		RICTOR		FANCD2	EPCAM
+NTRK1	AKAP9	BRIP1	KLF7	MAP2K4	AKT3		RB1		FAM230C	FANCA
+PTEN	AKT1	BUB1B	MEN1	MAP3K1	ALDH2		TSHR		EP400NL	FANCC
+RB1	AKT2	CDC73	MLH1	EZH2	ALK		BRIP1		SLC22A2	FANCD2
+SDHD	AKT3	CDH1	MLL3	KIT	APC		DDX10		FGFR1OP	FANCE
+SDHAF2	ALDH2	CDH10	MSH2	EGFR	AR		MKL1		SLC4A5	FANCF
+SDHC	ALK	CDK4	MSH6	BRAF	ARHGAP26		ATRX		ZNF717	FANCG
+SDHB	AMER1	CDKN1B	MUTYH	FLT3	ARHGEF12		PBX1		NIN	FH
+TSC1	ANK1	CDKN2A	NF1	NRAS	ARID1A		LPP		RPA1	FLCN
+TSC2	APC	CHEK2	PIK3CA	MAP2K1	ARID1B				NOTCH2NL	MEN1
+WT1	AR	CXCR4	PMS2	RAB35	ARID2				STAT3	MET
+NF2	ARAF	CYLD	PRRC2A	XPO1	ARID3A				KMT2C	MITF
+COL3A1	ARHGAP26	DDB2	PTEN	ZNRF3	ARID3B				SCMH1	MLH1
+FBN1	ARHGAP5	DICER1	RET	RNF43	ARID4A				NOTCH2	MLH3
+TGFBR1	ARHGEF12	EGFR	SDHA	PIK3CA	ARID4B				AKAP9	MRE11A
+TGFBR2	ARID1A	ERBB4	SDHB	PIK3CB	ARID5A				NBPF25P	MSH2
+SMAD3	ARID1B	ERCC2	SDHC	PIK3R1	ARID5B				HS3ST4	MSH6
+ACTA2	ARID2	ERCC3	SDHD	CDK12	ARNT				GPR39	MUTYH
+MYLK	ARNT	ERCC4	SETD2	RHEB	ASPSCR1				AKT3	NBNX1
+MYH11	ASPSCR1	ERCC5	TSC1	HRAS	ASXL1				COL23A1	NF1
+MYBPC3	ASXL1	EXT1	TSC2	GNA11	ATF1				GPHN	PALB2
+MYH7	ASXL2	EXT2	URGCP	GNAQ	ATIC					PMS1
+TNNT2	ATF1	FANCA	VHL	ERBB4	ATM					PMS2
+TNNI3	ATIC	FANCC	ZNF292	JAK3	ATR					PTEN
+TPM1	ATM	FANCD2		JAK2	ATRX					RAD50
+MYL3	ATP1A1	FANCE		PTCH1	AURKA					RAD51
+ACTC1	ATP2B3	FANCF		SMO	AXIN2					RAD51C
+PRKAG2	ATR	FANCG		DDR2	BAP1					RAD51D
+GLA	ATRX	FAT1		ERCC2	BCL10					RET
+MYL2	AXIN1	FEN1		MYD88	BCL11A					SDHA
+LMNA	AXIN2	FH		AKT1	BCL11B					SDHC
+RYR2	B2M	FLCN		AKT2	BCL2					SMAD4
+PKP2	BAP1	GPC3		AKT3	BCL3					STK11
+DSP	BARD1	HNF1A		KRAS	BCL6					TP53
+DSC2	BCL10	HRAS		GNAS	BCL7A					TSC1
+TMEM43	BCL11A	KDR		NPM1	BCL9					TSC2
+DSG2	BCL11B	KIT		RET	BCOR					VHL
+KCNQ1	BCL2	LMO1		FBXW7	BCR					
+KCNH2	BCL2L12	LZTR1		MPL	BIRC3					
+SCN5A	BCL3	MAX		VHL	BLID					
+LDLR	BCL6	MEN1		WT1	BLM					
+APOB	BCL7A	MLH1		FLCN	BMPR1A					
+PCSK9	BCL9	MPL		DNMT3A	BRAF					
+RYR1	BCL9L	MSH2		MED12	BRCA1					
+CACNA1S	BCLAF1	MSH6		RB1	BRCA2					
+	BCOR	MUTYH		SMAD2	BRD3					
+	BCORL1	NBN		SMAD4	BRD4					
+	BCR	NF1		RUNX1	BRIP1					
+	BIRC3	NF2		MEN1	BTG1					
+	BIRC6	NTHL1		MYC	BUB1B					
+	BMP5	PALB2		SMARCA4	C15orf55					
+	BRAF	PDGFRA		SMARCB1	CANT1					
+	BRCA1	PHOX2B		ERG	CARD11					
+	BRCA2	PMS1		NTRK3	CARS					
+	BRD3	PMS2		TMPRSS2	CASC5					
+	BRD4	POLD1		RSPO2	CBFA2T3					
+	BTG1	POLE		ETV1	CBFB					
+	BTK	POLQ		ETV4	CBL					
+	C15orf65	PRF1		ETV5	CBLB					
+	C2orf44	PRKAR1A		ETV6	CBLC					
+	CACNA1D	PTCH1		NKX2-1	CCDC6					
+	CALR	PTEN		CDH1	CCNB1IP1					
+	CAMTA1	PTPN13		EWSR1	CCND1					
+	CANT1	RB1		CDKN1A	CCND2					
+	CARD11	RECQL4		CDKN1B	CCND3					
+	CARS	RET		ERRFI1	CCNE1					
+	CASC5	SBDS		NFKBIA	CD274					
+	CASP8	SDHA		BRCA2	CD74					
+	CBFA2T3	SDHAF2		BRCA1	CD79A					
+	CBFB	SDHB		TP53	CD79B					
+	CBL	SDHC		NF1	CDC73					
+	CBLB	SDHD		NF2	CDH1					
+	CBLC	SETBP1		PTEN	CDH11					
+	CCDC6	SMAD4		ATR	CDH6					
+	CCNB1IP1	SMARCB1		ATM	CDK12					
+	CCNC	SMARCE1		STK11	CDK2AP2					
+	CCND1	SPOP		TSC2	CDK4					
+	CCND2	STAT3		TSC1	CDK6					
+	CCND3	STK11		APC	CDK8					
+	CCNE1	SUFU		BAP1	CDKN1A					
+	CCR4	TERT		CDKN2A	CDKN1B					
+	CCR7	TGFBR2		CDKN2B	CDKN2A					
+	CD209	TMEM127		CREBBP	CDKN2B					
+	CD274	TP53		CEBPA	CDKN2C					
+	CD28	TP63		AURKA	CDKN2D					
+	CD74	TSC1		ERBB2	CDX2					
+	CD79A	TSC2		CRKL	CEBPA					
+	CD79B	TSHR		MDM4	CHCHD7					
+	CDC73	VHL		MDM2	CHD5					
+	CDH1	WAS		CCND2	CHD6					
+	CDH10	WRN		CCND3	CHEK1					
+	CDH11	WT1		CDK4	CHEK2					
+	CDH17	XPA		CDK6	CHIC2					
+	CDK12	XPC		CCNE1	CHN1					
+	CDK6			IGF1R	CIC					
+	CDKN1A			CCND1	CIITA					
+	CDKN1B			FGFR1	CLP1					
+	CDKN2A			MAPK1	CLTC					
+	CDKN2C			MAPK3	CLTCL1					
+	CDX2			MCL1	CNBP					
+	CEBPA			AR	CNTRL					
+	CEP89			ESR1	COL1A1					
+	CHCHD7			MET	COX6C					
+	CHD2			BRD3	CREB1					
+	CHD4			BRD4	CREB3L1					
+	CHIC2			BRD2	CREB3L2					
+	CHST11			RAF1	CREBBP					
+	CIC			PDGFRA	CRKL					
+	CIITA			PDGFRB	CRLF2					
+	CLIP1			FGFR2	CRTC1					
+	CLP1			FGFR3	CRTC3					
+	CLTC			EPHA3	CSF1R					
+	CLTCL1			ERBB3	CTNNB1					
+	CNBD1			MITF	CXCR7					
+	CNBP			MAP2K2	CYLD					
+	CNOT3			SYK	CYP1B1					
+	CNTNAP2			KDR	DAXX					
+	CNTRL			ARAF	DDB2					
+	COL1A1			NOTCH2	DDIT3					
+	COL2A1			MTOR	DDX10					
+	COL3A1			NOTCH1	DDX5					
+	COX6C				DDX6					
+	CREB1				DEK					
+	CREB3L1				DICER1					
+	CREB3L2				DNMT3A					
+	CREBBP				DUX4					
+	CRLF2				EBF1					
+	CRNKL1				EGFR					
+	CRTC1				EIF4A2					
+	CRTC3				ELAC2					
+	CSF1R				ELF4					
+	CSF3R				ELK4					
+	CSMD3				ELL					
+	CTCF				ELN					
+	CTNNA2				EML4					
+	CTNNB1				EP300					
+	CTNND1				EPCAM					
+	CTNND2				EPHA10					
+	CUL3				EPHA3					
+	CUX1				EPHA5					
+	CXCR4				EPHA6					
+	CYLD				EPHB6					
+	CYP2C8				EPS15					
+	CYSLTR2				ERBB2					
+	DAXX				ERBB3					
+	DCAF12L2				ERBB4					
+	DCC				ERC1					
+	DCTN1				ERCC1					
+	DDIT3				ERCC2					
+	DDR2				ERCC3					
+	DDX10				ERCC4					
+	DDX3X				ERCC5					
+	DDX5				ERG					
+	DDX6				ETV1					
+	DEK				ETV4					
+	DGCR8				ETV5					
+	DICER1				ETV6					
+	DNAJB1				EWSR1					
+	DNM2				EXT1					
+	DNMT3A				EXT2					
+	DROSHA				EZH2					
+	DUX4L1				FAM123B					
+	EBF1				FAM22A					
+	ECT2L				FAM22B					
+	EED				FAM46C					
+	EGFR				FANCA					
+	EIF1AX				FANCC					
+	EIF3E				FANCD2					
+	EIF4A2				FANCE					
+	ELF3				FANCF					
+	ELF4				FANCG					
+	ELK4				FAS					
+	ELL				FBXO11					
+	ELN				FBXW7					
+	EML4				FCGR2B					
+	EP300				FCRL4					
+	EPAS1				FEV					
+	EPHA3				FGF23					
+	EPHA7				FGFR1					
+	EPS15				FGFR1OP					
+	ERBB2				FGFR2					
+	ERBB3				FGFR3					
+	ERBB4				FGFR4					
+	ERC1				FH					
+	ERG				FHIT					
+	ESR1				FHL1					
+	ETNK1				FIP1L1					
+	ETV1				FKBP1B					
+	ETV4				FKBP9					
+	ETV5				FLCN					
+	ETV6				FLI1					
+	EWSR1				FLT1					
+	EZH2				FLT3					
+	EZR				FLT4					
+	FAM131B				FNBP1					
+	FAM135B				FOLR1					
+	FAM46C				FOXC1					
+	FAM47C				FOXL2					
+	FAS				FOXO1					
+	FAT1				FOXO3					
+	FAT3				FOXO4					
+	FAT4				FOXP1					
+	FBLN2				FSTL3					
+	FBXO11				FUBP1					
+	FBXW7				FUS					
+	FCGR2B				GALNT3					
+	FCRL4				GAS7					
+	FES				GATA1					
+	FEV				GATA2					
+	FGFR1				GATA3					
+	FGFR1OP				GLMN					
+	FGFR2				GMPS					
+	FGFR3				GNA11					
+	FGFR4				GNAQ					
+	FHIT				GNAS					
+	FIP1L1				GOLGA5					
+	FKBP9				GOPC					
+	FLI1				GPC3					
+	FLNA				GPHN					
+	FLT3				GSTM1					
+	FLT4				GUCY1A2					
+	FNBP1				HECW1					
+	FOXA1				HERPUD1					
+	FOXL2				HEY1					
+	FOXO1				HIP1					
+	FOXO3				HIST1H4I					
+	FOXO4				HLF					
+	FOXP1				HMGA1					
+	FOXR1				HMGA2					
+	FSTL3				HMGN2P46					
+	FUBP1				HNF1A					
+	FUS				HNRNPA2B1					
+	GAS7				HOOK3					
+	GATA1				HOXA11					
+	GATA2				HOXA13					
+	GATA3				HOXA9					
+	GLI1				HOXC11					
+	GMPS				HOXC13					
+	GNA11				HOXD11					
+	GNAQ				HOXD13					
+	GNAS				HRAS					
+	GOLGA5				HSD17B3					
+	GOPC				HSD3B2					
+	GPHN				HSP90AA1					
+	GRIN2A				HSP90AB1					
+	GRM3				IDH1					
+	H3F3A				IDH2					
+	H3F3B				IGF1R					
+	HERPUD1				IKBKE					
+	HEY1				IKZF1					
+	HIF1A				IL2					
+	HIP1				IL21R					
+	HIST1H3B				IL6ST					
+	HIST1H4I				IL7R					
+	HLA-A				IRF4					
+	HLF				ITK					
+	HMGA1				JAK1					
+	HMGA2				JAK2					
+	HMGN2P46				JAK3					
+	HNF1A				JAZF1					
+	HNRNPA2B1				JUN					
+	HOOK3				KAT6A					
+	HOXA11				KAT6B					
+	HOXA13				KDM5A					
+	HOXA9				KDM5C					
+	HOXC11				KDM6A					
+	HOXC13				KDR					
+	HOXD11				KDSR					
+	HOXD13				KEAP1					
+	HRAS				KIAA1549					
+	HSP90AA1				KIF1B					
+	HSP90AB1				KIT					
+	ID3				KL					
+	IDH1				KLF6					
+	IDH2				KLK2					
+	IGH				KRAS					
+	IGK				KRT17					
+	IGL				KTN1					
+	IKBKB				LASP1					
+	IKZF1				LCK					
+	IL2				LCP1					
+	IL21R				LHFP					
+	IL6ST				LIFR					
+	IL7R				LMO1					
+	IRF4				LMO2					
+	IRS4				LPP					
+	ISX				LRP5					
+	ITGAV				LTBP2					
+	ITK				LTBP3					
+	JAK1				LYL1					
+	JAK2				MAD2L1BP					
+	JAK3				MAF					
+	JAZF1				MAFB					
+	JUN				MALAT1					
+	KAT6A				MALT1					
+	KAT6B				MAML2					
+	KAT7				MAP2K1					
+	KCNJ5				MAP2K2					
+	KDM5A				MAP2K4					
+	KDM5C				MAP3K1					
+	KDM6A				MAP3K8					
+	KDR				MAX					
+	KDSR				MC1R					
+	KEAP1				MCL1					
+	KIAA1549				MDM2					
+	KIAA1598				MDM4					
+	KIF5B				MDS2					
+	KIT				MECOM					
+	KLF4				MED12					
+	KLF6				MEN1					
+	KLK2				MET					
+	KMT2A				MITF					
+	KMT2C				MKL1					
+	KMT2D				MLF1					
+	KNSTRN				MLH1					
+	KRAS				MLL					
+	KTN1				MLL2					
+	LARP4B				MLL3					
+	LASP1				MLLT1					
+	LCK				MLLT10					
+	LCP1				MLLT11					
+	LEF1				MLLT3					
+	LHFP				MLLT4					
+	LIFR				MLLT6					
+	LMNA				MN1					
+	LMO1				MNX1					
+	LMO2				MPL					
+	LPP				MRE11A					
+	LRIG3				MSH2					
+	LRP1B				MSH6					
+	LSM14A				MSI2					
+	LYL1				MSN					
+	LZTR1				MTCP1					
+	MAF				MTCP1NB					
+	MAFB				MTOR					
+	MALAT1				MTUS2					
+	MALT1				MUC1					
+	MAML2				MUTYH					
+	MAP2K1				MYB					
+	MAP2K2				MYC					
+	MAP2K4				MYCL1					
+	MAP3K1				MYCN					
+	MAP3K13				MYD88					
+	MAPK1				MYH11					
+	MAX				MYH9					
+	MB21D2				MYOC					
+	MDM2				NACA					
+	MDM4				NBN					
+	MDS2				NCKIPSD					
+	MECOM				NCOA1					
+	MED12				NCOA2					
+	MEN1				NCOA4					
+	MET				NDRG1					
+	MITF				NF1					
+	MKL1				NF2					
+	MLF1				NFE2L2					
+	MLH1				NFIB					
+	MLLT1				NFKB2					
+	MLLT10				NIN					
+	MLLT11				NKX2-1					
+	MLLT3				NONO					
+	MLLT4				NOTCH1					
+	MLLT6				NOTCH2					
+	MN1				NOTCH3					
+	MNX1				NOTCH4					
+	MPL				NPM1					
+	MSH2				NR4A3					
+	MSH6				NRAS					
+	MSI2				NSD1					
+	MSN				NTRK1					
+	MTCP1				NTRK2					
+	MTOR				NTRK3					
+	MUC1				NUMA1					
+	MUC16				NUP214					
+	MUC4				NUP98					
+	MYB				OLIG2					
+	MYC				OMD					
+	MYCL				OPTN					
+	MYCN				P2RY8					
+	MYD88				PAFAH1B2					
+	MYH11				PAK7					
+	MYH9				PALB2					
+	MYO5A				PALLD					
+	MYOD1				PATZ1					
+	NAB2				PAX2					
+	NACA				PAX3					
+	NBEA				PAX5					
+	NCKIPSD				PAX6					
+	NCOA1				PAX7					
+	NCOA2				PAX8					
+	NCOA4				PBRM1					
+	NCOR1				PBX1					
+	NCOR2				PCM1					
+	NDRG1				PCSK7					
+	NF1				PDCD1LG2					
+	NF2				PDE4DIP					
+	NFATC2				PDGFB					
+	NFE2L2				PDGFRA					
+	NFIB				PDGFRB					
+	NFKB2				PDPK1					
+	NFKBIE				PER1					
+	NIN				PHF6					
+	NKX2-1				PHOX2B					
+	NONO				PICALM					
+	NOTCH1				PIK3CA					
+	NOTCH2				PIK3R1					
+	NPM1				PIM1					
+	NR4A3				PLAG1					
+	NRAS				PLK1					
+	NRG1				PML					
+	NSD1				PMS1					
+	NT5C2				PMS2					
+	NTRK1				POU2AF1					
+	NTRK3				POU5F1					
+	NUMA1				PPARG					
+	NUP214				PPP2R1A					
+	NUP98				PRCC					
+	NUTM1				PRDM1					
+	NUTM2A				PRDM16					
+	NUTM2B				PRF1					
+	OLIG2				PRKAR1A					
+	OMD				PRKDC					
+	P2RY8				PRRX1					
+	PABPC1				PSIP1					
+	PAFAH1B2				PTCH1					
+	PAX3				PTEN					
+	PAX5				PTK2					
+	PAX7				PTK2B					
+	PAX8				PTPN11					
+	PBRM1				PTPRD					
+	PBX1				RABEP1					
+	PCBP1				RAD51B					
+	PCM1				RAF1					
+	PDCD1LG2				RALGDS					
+	PDE4DIP				RANBP17					
+	PDGFB				RAP1GDS1					
+	PDGFRA				RARA					
+	PDGFRB				RB1					
+	PER1				RBM15					
+	PHF6				RECQL4					
+	PHOX2B				REL					
+	PICALM				RET					
+	PIK3CA				RHOH					
+	PIK3CB				RICTOR					
+	PIK3R1				RMI2					
+	PIM1				RNASEL					
+	PLAG1				ROS1					
+	PLCG1				RPL22					
+	PML				RPN1					
+	POLD1				RPTOR					
+	POLE				RRM1					
+	POLG				RUNX1					
+	POLQ				RUNX1T1					
+	POT1				SARDH					
+	POU2AF1				SBDS					
+	POU5F1				SDHAF2					
+	PPARG				SDHB					
+	PPFIBP1				SDHC					
+	PPM1D				SDHD					
+	PPP2R1A				Sep-05					
+	PPP6C				Sep-06					
+	PRCC				Sep-09					
+	PRDM1				SET					
+	PRDM16				SETD2					
+	PRDM2				SETDB1					
+	PREX2				SF3B1					
+	PRKACA				SF3B2					
+	PRKAR1A				SFPQ					
+	PRKCB				SH3GL1					
+	PRPF40B				SLC45A3					
+	PRRX1				SMAD2					
+	PSIP1				SMAD3					
+	PTCH1				SMAD4					
+	PTEN				SMARCA4					
+	PTK6				SMARCB1					
+	PTPN11				SMO					
+	PTPN13				SNX29					
+	PTPN6				SOCS1					
+	PTPRB				SOX2					
+	PTPRC				SPECC1					
+	PTPRK				SPEN					
+	PTPRT				SRC					
+	PWWP2A				SRD5A2					
+	QKI				SRGAP3					
+	RABEP1				SRSF2					
+	RAC1				SRSF3					
+	RAD21				SS18					
+	RAD51B				SS18L1					
+	RAF1				SSX1					
+	RALGDS				SSX2					
+	RANBP2				SSX4					
+	RAP1GDS1				STAT3					
+	RARA				STIL					
+	RB1				STK11					
+	RBM10				STX11					
+	RBM15				STXBP2					
+	REL				SUFU					
+	RET				SUZ12					
+	RGPD3				SYK					
+	RGS7				TAF15					
+	RHOA				TAL1					
+	RHOH				TAL2					
+	RMI2				TCEA1					
+	RNF213				TCEA1P2					
+	RNF43				TCF12					
+	ROBO2				TCF3					
+	ROS1				TCF4					
+	RPL10				TCF7L2					
+	RPL22				TCL1A					
+	RPL5				TCL6					
+	RPN1				TERT					
+	RSPO2				TET1					
+	RSPO3				TET2					
+	RUNDC2A				TFE3					
+	RUNX1				TFEB					
+	RUNX1T1				TFG					
+	S100A7				TFPT					
+	SALL4				TFRC					
+	SDC4				TGFBR2					
+	SDHA				THRAP3					
+	Sep-05				TLX1					
+	Sep-06				TLX3					
+	Sep-09				TMEM127					
+	SET				TMPRSS2					
+	SETBP1				TNFAIP3					
+	SETD2				TNFRSF14					
+	SF3B1				TNFRSF17					
+	SFPQ				TOP1					
+	SFRP4				TOP2A					
+	SGK1				TP53					
+	SH2B3				TPM3					
+	SH3GL1				TPM4					
+	SIRPA				TPR					
+	SKI				TRIM24					
+	SLC34A2				TRIM27					
+	SLC45A3				TRIM33					
+	SMAD2				TRIP11					
+	SMAD3				TSC1					
+	SMAD4				TSC2					
+	SMARCA4				TSHR					
+	SMARCB1				TTL					
+	SMARCD1				TYK2					
+	SMC1A				U2AF1					
+	SMO				UNC13D					
+	SND1				USP6					
+	SOCS1				UTY					
+	SOX2				VHL					
+	SPECC1				VTI1A					
+	SPEN				WAS					
+	SPOP				WDR36					
+	SRC				WHSC1					
+	SRGAP3				WHSC1L1					
+	SRSF2				WIF1					
+	SRSF3				WRN					
+	SS18				WT1					
+	SS18L1				XPA					
+	SSX1				XPC					
+	SSX2				XPO1					
+	SSX4				YWHAE					
+	STAG1				ZBTB16					
+	STAG2				ZMYM2					
+	STAT3				ZNF331					
+	STAT5B				ZNF384					
+	STAT6				ZNF521					
+	STIL				ZNF668					
+	STK11				ZRSR2					
+	STRN									
+	SUFU									
+	SUZ12									
+	SYK									
+	TAF15									
+	TAL1									
+	TAL2									
+	TBL1XR1									
+	TBX3									
+	TCEA1									
+	TCF12									
+	TCF3									
+	TCF7L2									
+	TCL1A									
+	TEC									
+	TERT									
+	TET1									
+	TET2									
+	TFE3									
+	TFEB									
+	TFG									
+	TFPT									
+	TFRC									
+	TGFBR2									
+	THRAP3									
+	TLX1									
+	TLX3									
+	TMPRSS2									
+	TNC									
+	TNFAIP3									
+	TNFRSF14									
+	TNFRSF17									
+	TOP1									
+	TP53									
+	TP63									
+	TPM3									
+	TPM4									
+	TPR									
+	TRA									
+	TRAF7									
+	TRB									
+	TRD									
+	TRIM24									
+	TRIM27									
+	TRIM33									
+	TRIP11									
+	TRRAP									
+	TSC1									
+	TSC2									
+	TSHR									
+	U2AF1									
+	UBR5									
+	USP6									
+	USP8									
+	VAV1									
+	VHL									
+	VTI1A									
+	WHSC1									
+	WHSC1L1									
+	WIF1									
+	WNK2									
+	WT1									
+	WWTR1									
+	XPO1									
+	YWHAE									
+	ZBTB16									
+	ZCCHC8									
+	ZEB1									
+	ZFHX3									
+	ZMYM3									
+	ZNF198									
+	ZNF278									
+	ZNF331									
+	ZNF384									
+	ZNF429									
+	ZNF479									
+	ZNF521									
+	ZNRF3									
+	ZRSR2									

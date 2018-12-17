@@ -1,31 +1,21 @@
-variable,location,name,order
-filename,u,tumour,1
-nrow(raw.snp)),u,Indel_or_SNP,2
-Gene.refGene,info,Main_gene,4
-ij,u,Downstream_gene,5
-SPV,info,Somatic_P_value,6
-positions,rowRanges,Position,7
-CLINSIG,info,Variant_position_in_ClinVar,8
-cosmic82,info,Variant_position_in_Cosmic_v82,9
-CosCensusSomatic,geneSet,In_Cosmic_Census_Somatic_Nov17,10
-CosCensusGermline,geneSet,In_Cosmic_Census_Germline_Nov17,11
-ACMG,geneSet,Variant_gene_in_ACMG_57_gene_list,12
-PopFreqMax,info,Maximum_Population_Frequency,13
-ExAC_ALL,info,ExAc_All,14
-gnomAD_exome_ALL,info,gnomAD_exome_All,15
-gnomAD_genome_ALL,info,gnomAD_genome All,16
-ExonicFunc.refGene,info,Mutation_type,17
-Func.refGene,info,ANNOVAR_gene_position,18
-num.germline.REF,u,num_Germline_REF_reads,19
-num.germline.ALT,u,num_Germline_ALT_reads,20
-num.somatic.REF,u,num_Somatic_REF_reads,21
-num.somatic.ALT,u,num_Somatic_ALT_reads,22
-fract.somatic.ALT,u,Fraction_of_somatic_reads_that_are_ALT,23
-avsnp147,info,Variant_position_in_dbSNP147 ,24
-rmsk,info,Variant_position_in_repeat_masked_region,25
-wgEncodeDacMapabilityConsensusExcludable,info,Variant_position_in_ENCODE_Dac_unmappable_region,26
-genomicSuperDups,info,Variant_position_in_regions_of_segmental_duplication,27
-SIFT_pred,info,Variant_effect_SIFT,29
-MutationTaster_pred,info,Variant_effect_Mutation_Taster,31
-MetaLR_pred,info,Variant_effect_MetaLR,32
-FATHMM_pred,info,Variant_effect_FATTHM,33
+fieldName, varName
+Gene, Main_gene
+Consequence, CGI_consequences
+AA Change, 
+Position, position
+Pop freq gnomAD exome, Maximum_Population_Frequency 
+GL REF reads, num_germline_REF
+GL ALT reads, num_germline_ALT
+T REF reads, 
+T ALT reads
+CGI oncodriveMUT status, CGI_driver
+CGI annotation, CGI_annotation
+CADD score, CGI_CADD_Phed
+SIFT, Variant_effect_SIFT
+MutationTaster, Variant_effect_Mutation_Taster
+MetaLR, Variant_effect_MetalR
+FATTHM,Variant_effect_FATTHM
+Variant position in ClinVar,Variant_position_in_Clinvar
+Variant position in Cosmic v82, Variant_position_in_Cosmic_v82
+Variant position in dbSNP147, Variant_position_in_dbSNP147
+

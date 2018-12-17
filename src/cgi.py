@@ -17,7 +17,7 @@ uk= user+" "+key
 
 
 
-print("submitting job")
+#print("submitting job")
 headers = {'Authorization': user+" "+key}
 payload = {'cancer_type': 'CANCER', 'title': 'gis it a go'}
 
@@ -29,7 +29,7 @@ r = requests.post('https://www.cancergenomeinterpreter.org/api/v1',
                 data=payload)
 jobId = r.json()
 
-print("job id returned: "+jobId)
+#print("job id returned: "+jobId)
 
 
 payload={'action':'logs'}
@@ -41,12 +41,12 @@ while(status != "Done"):
     ) 
     if r.json()['status'] != "Done":
         status=r.json()['status']
-        print(status)
+        #print(status)
         time.sleep(30)
     else:
         status = "Done"
 
-print(status)
+#print(status)
 
 
 payload={'action':'download'}
@@ -59,7 +59,7 @@ with open("file-"+jobId+".zip", 'wb') as fd:
     fd.write(r._content)
 
 with ZipFile("file-"+jobId+".zip", 'r') as zip:
-    zip.printdir()
+#    zip.printdir()
     zip.extract('mutation_analysis.tsv')
     zip.extract('drug_prescription.tsv')
 
@@ -78,6 +78,6 @@ with ZipFile("file-"+jobId+".zip", 'r') as zip:
 #
 #POST(req)
 r = requests.delete('https://www.cancergenomeinterpreter.org/api/v1/'+jobId, headers=headers)
-print(r.json())
+#print(r.json())
 
 

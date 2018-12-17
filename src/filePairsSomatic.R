@@ -12,7 +12,7 @@ out1=args[3]
 #snpVCF="intermediateFiles/P1014A_1.fastq.align.removeDuplicates.removeSuppplementary.pileUp.annotation.vcf.gz"
 #indelVCF =  "intermediateFiles/P1014A_1.fastq.align.removeDuplicates.removeSuppplementary.pileUp.2.annotation.vcf.gz"
 #out1="intermediateFiles/P1014A_1.fastq.align.removeDuplicates.removeSuppplementary.pileUp.annotation.vcf.count"
-#out2="intermediateFiles/P1014A_1.fastq.align.removeDuplicates.removeSuppplementary.pileUp.annotation.vcf.2.count"
+#out1="intermediateFiles/P1014A_1.fastq.align.removeDuplicates.removeSuppplementary.pileUp.annotation.vcf.2.count"
 
 #source("https://bioconductor.org/biocLite.R")
 
@@ -52,18 +52,22 @@ geneFilter = function(x) {
 
 infoFilter = function(x) {
   blackList = info(x)$wgEncodeDacMapabilityConsensusExcludable == "."  # discard variants in Encode DAC black list regions
-  germline = info(x)$SS == 1 # germline calls apparently.
+  germline = info(x)$SS == 2 # somatic calls apparently.
   return(unlist(blackList & germline))
 }
 
 ## filters on the geno region. 
 genoFilter = function(x) {
-  Ndepth = 10 # N overall depth 
-  N.var.depth = 4 # N ALT supporting depth 
+  Ndepth = 20 # N overall depth
+  ##N.var.depth = 4 # N ALT supporting depth
+# td = geno(x)$AD[,"TUMOR"] + geno(x)$RD[, "TUMOR"] >= Ndepth
   nd = geno(x)$AD[,"NORMAL"] + geno(x)$RD[, "NORMAL"] >= Ndepth
-  nvd = geno(x)$AD[,"NORMAL"] >= N.var.depth
-  unlist(nd & nvd)
+# tvd =geno(x)$AD[,"TUMOR"] >= T.var.depth
+  ##nvd = geno(x)$AD[,"NORMAL"] >= N.var.depth
+# tvp = (100 * geno(x)$AD[, "TUMOR"])/(geno(x)$AD[, "TUMOR"] + geno(x)$RD[, "TUMOR"]) >= T.var.per
+  unlist(nd  )
 }
+
 
 ## contstruct the filter lists.
 PF = FilterRules(list(regionFilter))
