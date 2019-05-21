@@ -4,136 +4,157 @@
 //      i.e. you need to install annovar and then replace table_annovar.pl with the copy found with this pipeline
 // Report generation function to be added (soon)
 
-// input is 4 *.fastq.gz files. 2 sets of paired end files, one for tumour, one for normal.
 
-bwaIndex="/home/TestData/Genome/ucsc.hg19.fasta"
-threads="12"
+bwaIndex="/nesi/project/uoa00595/data/hg19/ucsc.hg19.fasta"
+cosmic="/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
+dbSnp150="/nesi/project/uoa02461/data/dbsnp150.vcf"
+picardLoc = "/scale_wlg_nobackup/pan_migration/apps/easybuild/RHEL6.3/westmere/software/picard/2.1.0/picard.jar"
+
 
 qc = {
-    output.dir="data/fastqc"
-    //exec "module load FastQC"
-    multi "fastqc -t 1 $input1 -o fastqc/",
-        "fastqc -t 1 $input2 -o fastqc/",
-        "fastqc -t 1 $input3 -o fastqc/",
-        "fastqc -t 1 $input4 -o fastqc/"
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles/qcResults"
+
+    exec """fastqc -t 8 $input1 -o fastqc_out/ > $output1.log""", "qc"
+    exec """fastqc -t 8 $input2 -o fastqc_out/ > $output2.log""", "qc"
+}
+
+unzip = {
+
 }
 
 
 trim = {
-    output.dir="data/intermediateFiles"
-    // this assumes that the input is illumina, as we're not autodetecting across a variety of possible adapters,
-    // which would be possible with trim_glaore, but that requires changes to trim_galores output methods. 
-    multi "cutadapt -a AGATCGGAAGAGC -q 30 --minimum-length=50 -o $output1 -p $output2 $input1 $input2",
-        "cutadapt -a AGATCGGAAGAGC -q 30 --minimum-length=50 -o $output3 -p $output4 $input3 $input4"
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    branch.sample=branch.name
+    println "Aligning: $sample"
+    transform('trim.gz','trim.gz') {
+        exec """cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
+
+    }
+}
+
+align = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    requires type: 'the kind of sample being processed: test or control'
+    branch.sample=branch.name
+        exec """bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 | samtools sort -@12 -O BAM -o $output.bam""", "align"
+
+    }
 }
 
 
-
-align = { 
-    output.dir="data/intermediateFiles"
-    // align the tumour sample and the 
-    //exec "module load SAMtools"
-    //multi "bwa mem -R '@RG\\tID:${SAMPLE}_02\\tSM:$SAMPLE\\tLB:${SAMPLE}_02\\tPL:ILLUMINA' -t 12 $bwaIndex $input1 $input2 > $output1.bam",
-    //    "bwa mem -t 12 -R '@RG\\tID:${SAMPLE}_02\\tSM:$SAMPLE\\tLB:${SAMPLE}_02\\tPL:ILLUMINA' $bwaIndex $input3 $input4 > $output2.bam"
-        
-    //multi "samtools sort -@8 -O BAM -o $output1.bam $output1.bam",
-    //    "samtools sort -@8 -O BAM -o $output2.bam $output2.bam" 
-    multi "bwa mem -t 12 -R '@RG\\tID:${SAMPLE}_02\\tSM:$SAMPLE\\tLB:${SAMPLE}_02\\tPL:ILLUMINA' $bwaIndex $input1 $input2 | samtools sort -@12 -O BAM -o $output1.bam",
-          "bwa mem -t 12 -R '@RG\\tID:${SAMPLE}_02\\tSM:$SAMPLE\\tLB:${SAMPLE}_02\\tPL:ILLUMINA' $bwaIndex $input3 $input4 | samtools sort -@12 -O BAM -o $output2.bam"
-
-
-
-}
-
-removeDuplicates = {
-    output.dir="data/intermediateFiles"
-    multi "java -jar  /usr/local/jar/picard.jar MarkDuplicates I=$input1.bam O=$output1.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE",
-        "java -jar /usr/local/jar/picard.jar MarkDuplicates I=$input2.bam O=$output2.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE" 
-
+markDuplicates = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    // we only want to mark duplicates, not remove them. 
+    exec "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt TMP_DIR='/nesi/project/uoa02461/data/tmp' CREATE_INDEX=TRUE", "markDuplicates"
 }
 
 
-
-removeSuppplementary = {
-    output.dir="data/intermediateFiles"
-    multi "samtools view -@ 4 -b -F 2048 $input1.bam > $output1.bam",
-        "samtools view -@ 4 -b -F 2048 $input2.bam > $output2.bam"
-    multi "samtools index $output1.bam",
-        "samtools index $output2.bam"
+// Do we want to do this?
+// ....
+// yeah, why not. 
+removeSuplementary = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    transform('.bam' ) {
+        exec """samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
+        exec """samtools index $output.bam""","removeSupplementary"
+    }
     
 }
 
+collectMetrics = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles/metrics"
+    exec "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5","collectMetrics"
+}
+
+convertToSam = {
+        output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+        exec "samtools view -h -o $output.sam $input.bam", "convertToSam"
+}
+
+
+
+filterShortInserts = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    //exec "awk -F '\t' '((\$1~/@/) || (\$9 <= -50 && \$9 >= -150) || (\$9 <= 150 && \$9 >= 50)) { print \$0 }' $input.sam > $output.sam"
+    exec "awk '{ print \$1 '\t' \$2 }' "
+
+}
+
+convertToBam = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    exec "samtools view -S -b input.sam > output.bam"
+}
+
+
 pileUp = {
-    output.dir="data/intermediateFiles"
-    //exec "samtools mpileup -B -d 9000 -q 1 -f $bwaIndex -o $output $input1.bam $input2.bam"
-    exec "samtools mpileup -B -d 9000 -q 1 -f $bwaIndex  $input1.bam $input2.bam | java -Xmx16g -d64 -jar /usr/local/jar/VarScan.v2.4.3.jar somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output1.vcf  --output-indel $output2.vcf"
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    branch.sample = branch.name
+   
+    from(sample + '*.bam') {
+        exec """samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.bam $input.test.bam | java -Xmx16g -d64 -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output1.snp.vcf  --output-indel $output1.indel.vcf""","pileUp"
+
+    }
 }
 
-variantCalling = {
-   output.dir="data/intermediateFiles"
 
-    // it should be noted that output1 is snps, output2 is indels
-    VARSCAN="/nesi/project/uoa00571/software/VarScan.v2.4.3.jar"
-    exec "java -Xmx8g -jar /nesi/project/uoa00571/software/VarScan.v2.4.3.jar somatic $input --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output1.vcf  --output-indel $output2.vcf"
+
+
+// filter out mutations found in dbsnp150
+filterdbSnp150 = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    exec "bedtools intersect -v  -a $input.vcf -b $dbSnp150 > $output.vcf"
 }
 
-annotation = {
-    output.dir="data/intermediateFiles"
-
-    // load mahuika modules - the bpipe config method of doing this doesn't appear to be working. 
-    //exec "module load VCFtools"
-    //exec "module load SAMtools"
-    //exec "module load BEDTools/2.26.0-gimkl-2017a"
-    //exec "module load Perl"
-
-
-    // Version 2 of our annotation
-	multi "perl src/table_annovar.pl $input hg19  -buildver hg19 -outfile $output.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput",
-    	      "perl src/table_annovar.pl $input2 hg19  -buildver hg19 -outfile $output2.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput"
-
+removeDuplicates = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    transform('.bam', '._dup_metrics.txt') {
+        exec """java -jar  $picardLoc MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE""", "removeDuplicates"
+    }
 }
+
+alignmentMetrics = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    exec """ samtools index -@ $threads $input.bam > $output.indexed""" , "index"
+    exec """ java -Xmx8G -jar /nesi/project/uoa00571/bin/GenomeAnalysisTK.jar -T DepthOfCoverage -I $input.bam -R /nesi/project/uoa02461/data/hg19/ucsc.hg19.fasta -o $output  --omitDepthOutputAtEachBase --omitIntervalStatistics --omitLocusTable --printBaseCounts -L /nesi/project/uoa00571/data/design_files/S07604514_Regions.bed -ct 1 -ct 10 -ct 30 -ct 50 -ct 100 -ct 200 > $output """, "alignmentMetrics"
+    exec """ java -Xmx8G -jar $picardLoc CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
+}
+
+
+// filter with cosmic mutations - keep anything that is in either cosmic coding or cosmic non-coding vcf's
+filterCosmic = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    exec "bedtools intersect  -a $input.vcf -b $cosmic > $output.vcf"
+}
+
 
 count = {
-  output.dir="data/intermediateFiles" 
-  exec "cp $input1.vcf temp1.vcf"
-  zipped = "$input1" + ".gz" 
-  exec "bgzip -f $input1.vcf" 
-  exec "tabix -f -p vcf $zipped"
-  exec "cp temp1.vcf $input1.vcf"
-
-
-  exec "cp $input2.vcf temp2.vcf"
-  exec "bgzip -f $input2.vcf"
-  zipped2 = "$input2" + ".gz"
-  exec "tabix -f -p vcf $zipped2"
-  exec "cp temp2.vcf $input2.vcf"
-
-
-  //This really doesn't fall over gracefully when the filters are to strict.
-  //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters. 
-  //it should be a single function called twice with different parameters.
-  exec "Rscript src/filePairs.R $zipped $zipped2 $output"
-  exec "Rscript src/filePairsSomatic.R $zipped $zipped2 $output2"
-
-}
-
-reportGeneration ={
-	output.dir="results"
-   exec "Rscript src/generateReport.R $input1 $input2 $output1"
-}
-
-cleanup_bams = {
-        cleanup "*.bam", "*.bam"
+  output.dir = "/nesi/nobackup/uoa02461/data/intermediateFiles"
+  exec "module load R"
+  exec "echo $input"
+  exec "Rscript serial.R $input snp $output $output2"
+  // then the germline one exec
 }
 
 
-// currently runs qc, doeen't wait for confirmation on whether to continue the run, 
+def branches = [
+sample1: ["/nesi/nobackup/uoa02461/data/intermediateFiles/A0028-1_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam" ,"/nesi/nobackup/uoa02461/data/intermediateFiles/A0028B_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam"],
+sample2: ["/nesi/nobackup/uoa02461/data/intermediateFiles/A0028-2_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam", "/nesi/nobackup/uoa02461/data/intermediateFiles/A0028B_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam" ]
+]
+
+
+// currently runs qc, doesn't wait for confirmation on whether to continue the run, 
 // trims, and does a 2nd lot of qc to the trimmed reads. 
 // Once this is parrallelized, should be able to insert multiqc steps. 
 
 // run with qc
-// run { [qc + trim] +  [qc + align] + removeDuplicates + removeSuppplementary + pileUp + variantCalling + annotation}
+//run { [qc + trim] +  [qc + align] + removeDuplicates + removeSuppplementary + pileUp + variantCalling + annotation}
 
-// run without qc
-run {  align +  removeDuplicates + removeSuppplementary  + pileUp + annotation + count + reportGeneration}
+// actual plasma run ...
+//run { trim +  align + markDuplicates + removeSuppplementary +  convertToSam + filterShortInserts + convertToBam + pileUp + variantCalling + annotation + filterdbSnp150 + filterCosmic}
+//run {
+//   "%_*.fastq.gz" * [trim] + "%_*.trim" * [align] + "%_*" * [removeDuplicates] + "%_*" * [removeSuppplementary] + branches * [pileUp] +  "%_*" * [annotation]
+//}
+
+//run { "%_*.fastq.gz" * [trim]  + "%_*.trim" * [align] + "%_*" * [removeDuplicates, alignmentMetrics] }
 
