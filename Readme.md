@@ -6,6 +6,7 @@ Version 1 of bpipe pipeline for analysis of genomic data.
 # Requirements
 Bpipe is installed (link to latest version available at docs.bpipe.org)
 Tools that bpipe uses:
+* [bpipe](https://github.com/ssadedin/bpipe) - also requires Java
 * FastQC
 * cutadapt
 * BWA
