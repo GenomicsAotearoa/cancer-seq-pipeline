@@ -46,10 +46,6 @@ es that. i.e. in the example above, the final report would list the filename as 
 
 Location of hg19 genome is currently hardcoded in another projects directory, i.e. the TestData directory. Not a problem, just something to be aware of/not the best form.
 
-Varscan step is not currently operational. Needs a local version of varscan, which I've probably been told the location of but can't currently find/recall.
-
-Currently running only serially. Not a problem for the otago box.
-
 Need a place to centrally locate filter parameters. i.e. there should be a file where it can be checked easily, currently filter levels are buried in R code of filePair.R and generateReport.R
 
 `filePairs.R` and `filePairsSomatic.R` really need to be condensed to a single step. The only difference between them is a flag stating somatic/germline and some filter settings. Also results in the VCF file's being read in twice, which is inelegant.
