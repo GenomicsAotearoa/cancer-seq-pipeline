@@ -1,3 +1,4 @@
+
 import pandas as pd
 import sys, getopt
 
@@ -30,7 +31,7 @@ def main(argv):
     currentPatient = ""
     
 
-    workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary ],   samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary ]] + samples * [  pileUp  ] }"
+    workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary ],   samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary ]] + samples * [  pileUp  ] + samples * [annotation] }"
 
     for index, row in df.iterrows():
         patient = row["patient"]
