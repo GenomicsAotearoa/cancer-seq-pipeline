@@ -18,31 +18,18 @@ Tools that bpipe uses:
 * Perl
 * R
 
-Currently using a module system where tools need to be loaded prior to the execution of each step. 
+Currently using a module system where tools need to be loaded prior to the execution of each step. Currently transitioning to Singularity containers 
 
 # Running
 
-Assuming there is a data directory at the same level as your src directory, then execute by moving to the data directory, and running:
+All bpipe stages are contained in the file "pipeline". generateBpipes2.py generates a minimal pipeline file for each patient, loading the main pipeline file, defining the data location, the comparisons to be made and the actual workflow.
+
+Command to run:
 
 ```
-bpipe ../src/pipeline tumour_1.fastq.gz tumour_2.fastq.gz normal_1.fastq.gz normal_2.fastq.gz
+bpipe minimalPipe-**** 
 ```
 
-# Current Steps
-
-
-# Todo/notes
-
-The report generation step requires a file in the data directory called metadata.txt, containing lists of genes. Currently, a single list is selected and filtered for during report generation.
-Awaiting confirmation that the current list can go public. 
-
-Command to run: 
-
-```
-bpipe minimalPipe-******
-```
-
-All bpipe stages are contained in the file "pipeline". generateBpipes2.py generates a minimal pipeline file for each patient, loading the main pipeline file, defining the data location, the comparisons to be made and the actual workflow. 
 
 ## Todo:
 ### Pipeline:
@@ -50,11 +37,8 @@ All bpipe stages are contained in the file "pipeline". generateBpipes2.py genera
     * There needs to be a script or script component that checks the singularity instances. That they are
         1. built
         2. present in the correct directory. 
-
     * Running via Singularity containers has been added for cutadapt and bwa. Needs to be added to remaining pipeline stages.
-    
     * Report generation needs to be tested.
-
     * Sample data for unit tests need to constructed. 
     * Unit tests need to be constructed.
     * Centralised (cross-project) location for some datasources (i.e. reference genome, bed files etc) need to be defined for simplifying use on NeSI
