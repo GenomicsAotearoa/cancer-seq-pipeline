@@ -20,7 +20,7 @@ def main(argv):
     args = parser.parse_args()
     
     # This needs to come from a config file rather than be hardcoded
-    dataDir="/nesi/project/uoa02461/data/raw/gastric"
+    dataDir="/nesi/project/uoa02461/data/raw/gastric/"
 
     try:
         df = pd.read_csv (args.comparisons)
@@ -54,7 +54,7 @@ def main(argv):
             pipelineFile  = open("minimalPipe-"+ patient, "w")
             pipelineFile.write("load \"pipeline\" \n\n")
             pipelineFile.write("$dataDir="+ dataDir)
-            pipelineFile.write("control = [ " +patient + sampleNumber + " : [\"" + patient  + sampleNumber + "_1.fastq.gz\",\"" + patient  + sampleNumber + "_2.fastq.gz\"]\n]\n")
+            pipelineFile.write("control = [ "  + patient + sampleNumber + " : [\""+ dataDir + patient  + sampleNumber + "_1.fastq.gz\",\"" + dataDir + patient  + sampleNumber + "_2.fastq.gz\"]\n]\n")
             pipelineFile.write("samples = [\n")
 
             currentPatient = patient
@@ -64,7 +64,7 @@ def main(argv):
 
 
         baseNumber = str(row["compareTo"])
-        pipelineFile.write(patient + baseNumber + " : [\"" + patient  + baseNumber + "_1.fastq.gz\", \"" + patient +  baseNumber + "_2.fastq.gz\"]")  
+        pipelineFile.write(patient + baseNumber + " : [\"" + dataDir + patient  + baseNumber + "_1.fastq.gz\", \"" + dataDir + patient +  baseNumber + "_2.fastq.gz\"]")  
 
         
     pipelineFile.write("\n]\n")

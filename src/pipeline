@@ -9,6 +9,7 @@ bwaIndex="/nesi/project/uoa00595/data/hg19/ucsc.hg19.fasta"
 cosmic="/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
 dbSnp150="/nesi/project/uoa02461/data/dbsnp150.vcf"
 picardLoc = "/scale_wlg_nobackup/pan_migration/apps/easybuild/RHEL6.3/westmere/software/picard/2.1.0/picard.jar"
+bindDir="/nesi/nobackup/uoa02461/data/intermediateFiles/"
 
 
 qc = {
@@ -28,7 +29,7 @@ trim = {
     branch.sample=branch.name
     println "Aligning: $sample"
     transform('trim.gz','trim.gz') {
-        exec """cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
+        exec """singularity run --bind $bindDir cutadapt.sif cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
 
     }
 }
@@ -37,7 +38,8 @@ align = {
     output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
     requires type: 'the kind of sample being processed: test or control'
     branch.sample=branch.name
-        exec """bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 | samtools sort -@12 -O BAM -o $output.bam""", "align"
+        exec """singularity run --bind $bindDir --bind $bwaIndexDir bwa.sif bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $output""", "align"
+        exec """samtools sort -@12 -O BAM -o $output.bam $output""","align"
 
     }
 }
@@ -47,6 +49,18 @@ markDuplicates = {
     output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
     // we only want to mark duplicates, not remove them. 
     exec "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt TMP_DIR='/nesi/project/uoa02461/data/tmp' CREATE_INDEX=TRUE", "markDuplicates"
+}
+
+recalibrate = {
+    output.dir="/nesi/nobackup/uoa02606/data/intermediateFiles"
+    exec """ ../bin/gatk/gatk --java-options "-Xmx16G" BaseRecalibrator -R $bwaIndex -I $input.bam -O $output.table --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/dbsnp_138.hg19.vcf --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf""", "recalibrate"
+    exec """ ../bin/gatk/gatk --java-options "-Xmx16G" ApplyBQSR -R $bwaIndex -I $input.bam -bqsr $output.table -O $output.bam""", "recalibrate"
+
+}
+
+haplotypeCalling = {
+    output.dir="/nesi/nobackup/uoa02606/data/intermediateFiles"
+    exec """/scale_wlg_persistent/filesets/project/uoa02606/bin/gatk/gatk --java-options "-Xmx32G" HaplotypeCaller -R $bwaIndex -I $input.bam -O $output.vcf""" ,"haplotyping"
 }
 
 
