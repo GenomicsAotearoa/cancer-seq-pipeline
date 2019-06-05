@@ -6,10 +6,13 @@
 
 
 bwaIndex="/nesi/project/uoa00595/data/hg19/ucsc.hg19.fasta"
+bwaIndexDir="/nesi/project/uoa00595/data/hg19/"
+
 cosmic="/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
 dbSnp150="/nesi/project/uoa02461/data/dbsnp150.vcf"
 picardLoc = "/scale_wlg_nobackup/pan_migration/apps/easybuild/RHEL6.3/westmere/software/picard/2.1.0/picard.jar"
 bindDir="/nesi/nobackup/uoa02461/data/intermediateFiles/"
+singularityBuilds = "/nesi/project/uoa02461/bin/"
 
 
 qc = {
@@ -29,7 +32,9 @@ trim = {
     branch.sample=branch.name
     println "Aligning: $sample"
     transform('trim.gz','trim.gz') {
-        exec """singularity run --bind $bindDir cutadapt.sif cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
+        //exec """singularity run --bind $bindDir $singularityBuilds/cutadapt-2.3.simg cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
+        exec """cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
+
 
     }
 }
@@ -38,17 +43,50 @@ align = {
     output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
     requires type: 'the kind of sample being processed: test or control'
     branch.sample=branch.name
-        exec """singularity run --bind $bindDir --bind $bwaIndexDir bwa.sif bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $output""", "align"
-        exec """samtools sort -@12 -O BAM -o $output.bam $output""","align"
+    
+    unsortedBam = bindDir + sample + ".bam"    
+    println "$unsortedBam"
+    println "$input"
+    produce(sample + '.' + type + '.bam') {
+       //exec """singularity run --bind $bindDir --bind $bwaIndexDir bwa.sif bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $unsortedBam""","align"
+       //exec """singularity run --bind $bindDir ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $unsortedBam""","align"
+       exec """bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 | samtools sort -@12 -O BAM -o $output.bam ""","align"
+       //exec """samtools sort -@12 -O BAM -o $output.bam $unsortedBam""","align"
 
     }
+
 }
+
+
+removeDuplicates = { 
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    println "$input"
+    exec """java -jar  $picardLoc MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE""", "removeDuplicates"
+}   
+
+removeSuplementary = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    println "$input"
+    exec """samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
+    exec """samtools index $output.bam""","removeSupplementary"
+}
+
+sortBam = {   
+    branch.sample=branch.name
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+
+    produce(sample + '.' + type + 'sorted.bam') {
+        exec """singularity run --bind $bindDir ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output $input""","sortBam"
+    }
+}
+
+
 
 
 markDuplicates = {
     output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
     // we only want to mark duplicates, not remove them. 
-    exec "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt TMP_DIR='/nesi/project/uoa02461/data/tmp' CREATE_INDEX=TRUE", "markDuplicates"
+    exec "singularity run --bind $bindDir $singularityBuilds/picard-2.18.4.simg java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt TMP_DIR='/nesi/project/uoa02461/data/tmp' CREATE_INDEX=TRUE", "markDuplicates"
 }
 
 recalibrate = {
@@ -64,17 +102,6 @@ haplotypeCalling = {
 }
 
 
-// Do we want to do this?
-// ....
-// yeah, why not. 
-removeSuplementary = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
-    transform('.bam' ) {
-        exec """samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
-        exec """samtools index $output.bam""","removeSupplementary"
-    }
-    
-}
 
 collectMetrics = {
     output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles/metrics"
@@ -104,15 +131,33 @@ convertToBam = {
 pileUp = {
     output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
     branch.sample = branch.name
-   
-    from(sample + '*.bam') {
-        exec """samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.bam $input.test.bam | java -Xmx16g -d64 -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output1.snp.vcf  --output-indel $output1.indel.vcf""","pileUp"
-
+    
+    produce(sample + '.snp.vcf', sample + '.indel.vcf') {
+        from(sample + '*removeSuplementary.bam') {
+            // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally. 
+            // It'd be really nice if someone could figure out how to fix that he said nonchalantly
+            exec """samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.removeDuplicates.removeSuplementary.bam $input.test.removeDuplicates.removeSuplementary.bam | java -Xmx16g -d64 -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+        }
     }
 }
 
+annotation = {
+    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    branch.sample = branch.name
+    println "Annotating sample $sample"
+    // Version 2 of our annotation
+    produce(sample + ".annotated.snp.vcf", sample + ".annotated.indel.vcf"){
+        from(sample + '*.snp.vcf') {
+            println "$input.vcf"
+            exec """perl /nesi/project/uoa00571/src/table_annovar.pl $input.vcf /nesi/project/uoa00571/data/annovar/db -buildver hg19 -outfile $output.annotated.snp.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+        }
+        from(sample + '*.indel.vcf'){
+            println "$input"
+            exec """perl /nesi/project/uoa00571/src/table_annovar.pl $input.vcf /nesi/project/uoa00571/data/annovar/db  -buildver hg19 -outfile $output.annotated.indel.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
 
-
+        }
+    }
+}
 
 // filter out mutations found in dbsnp150
 filterdbSnp150 = {
@@ -120,12 +165,6 @@ filterdbSnp150 = {
     exec "bedtools intersect -v  -a $input.vcf -b $dbSnp150 > $output.vcf"
 }
 
-removeDuplicates = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
-    transform('.bam', '._dup_metrics.txt') {
-        exec """java -jar  $picardLoc MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE""", "removeDuplicates"
-    }
-}
 
 alignmentMetrics = {
     output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
@@ -150,11 +189,6 @@ count = {
   // then the germline one exec
 }
 
-
-def branches = [
-sample1: ["/nesi/nobackup/uoa02461/data/intermediateFiles/A0028-1_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam" ,"/nesi/nobackup/uoa02461/data/intermediateFiles/A0028B_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam"],
-sample2: ["/nesi/nobackup/uoa02461/data/intermediateFiles/A0028-2_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam", "/nesi/nobackup/uoa02461/data/intermediateFiles/A0028B_1.fastq.gz.align.removeDuplicates.removeSuppplementary.bam" ]
-]
 
 
 // currently runs qc, doesn't wait for confirmation on whether to continue the run, 
