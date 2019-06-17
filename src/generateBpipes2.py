@@ -39,6 +39,10 @@ def main(argv):
     
     # workflow generation needs to go here.
     workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary],   samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary ]] + samples * [  pileUp  ] + samples * [annotation] }"
+    
+workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary ], samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary  ]] + samples * [pileUp] + samples *[annotation] + count + reportGeneration } \n\n 
+    //QC run
+    //run{ [control * [qc] + control * [trim + align.using(type:'control')] + control * [alignmentMetrics.using(type:'control'), collectMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim + align.using(type:'test')] + samples * [ alignmentMetrics.using(type:'control') ,collectMetrics.using(type:'test')]] }"
 
     for index, row in df.iterrows():
         patient = row["patient"]
