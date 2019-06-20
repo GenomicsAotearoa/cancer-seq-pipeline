@@ -16,10 +16,13 @@ singularityBuilds = "/nesi/project/uoa02461/bin/"
 
 
 qc = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles/qcResults"
-
-    exec """fastqc -t 8 $input1 -o fastqc_out/ > $output1.log""", "qc"
-    exec """fastqc -t 8 $input2 -o fastqc_out/ > $output2.log""", "qc"
+    output.dir=$intermediateDirectory
+    branch.sample=branch.name
+    qcOutput=output.dir + "/fastqcResults"
+    produce(sample + '_1.log', sample + '_2.log'){
+        exec """fastqc -t 8 $input1 -o $qcOutput > $output1""", "qc"
+        exec """fastqc -t 8 $input2 -o $qcOutput > $output2""", "qc"
+    }
 }
 
 unzip = {
@@ -28,7 +31,7 @@ unzip = {
 
 
 trim = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     branch.sample=branch.name
     println "Aligning: $sample"
     transform('trim.gz','trim.gz') {
@@ -40,7 +43,7 @@ trim = {
 }
 
 align = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     requires type: 'the kind of sample being processed: test or control'
     branch.sample=branch.name
     
@@ -59,13 +62,13 @@ align = {
 
 
 removeDuplicates = { 
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     println "$input"
     exec """java -jar  $picardLoc MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE""", "removeDuplicates"
 }   
 
 removeSuplementary = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     println "$input"
     exec """samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
     exec """samtools index $output.bam""","removeSupplementary"
@@ -73,7 +76,7 @@ removeSuplementary = {
 
 sortBam = {   
     branch.sample=branch.name
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
 
     produce(sample + '.' + type + 'sorted.bam') {
         exec """singularity run --bind $bindDir ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output $input""","sortBam"
@@ -84,7 +87,7 @@ sortBam = {
 
 
 markDuplicates = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     // we only want to mark duplicates, not remove them. 
     exec "singularity run --bind $bindDir $singularityBuilds/picard-2.18.4.simg java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt TMP_DIR='/nesi/project/uoa02461/data/tmp' CREATE_INDEX=TRUE", "markDuplicates"
 }
@@ -105,31 +108,53 @@ haplotypeCalling = {
 
 collectMetrics = {
     output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles/metrics"
-    exec "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5","collectMetrics"
+    requires type: 'the kind of sample being processed: test or control'
+    branch.sample=branch.name
+    from(sample + '.' + type + '.bam'){
+        exec "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5","collectMetrics"
+    }
 }
 
+alignmentMetrics = {
+    output.dir=$intermediateDirectory
+    requires type: 'the kind of sample being processed: test or control'
+    branch.sample=branch.name
+    println "$sample"
+    
+    // for collecting % on target
+    //regions = "/nesi/project/uoa00571/data/design_files/S07604514_Regions.bed"
+    regions = "/nesi/project/uoa02461/data/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
+
+    from(sample + '.' + type + '.bam'){
+        exec """ samtools index -@ $threads $input > $output.indexed""" , "index"
+        exec """ java -Xmx8G -jar /nesi/project/uoa00571/src/cpipe-master/tools/gatk/2.3.9/GenomeAnalysisTK.jar -T DepthOfCoverage -I $input.bam -R /nesi/project/uoa02461/data/hg19/ucsc.hg19.fasta -o $output  --omitDepthOutputAtEachBase --omitIntervalStatistics --omitLocusTable --printBaseCounts -L $regions -ct 1 -ct 10 -ct 30 -ct 50 -ct 100 -ct 200 > $output """, "alignmentMetrics"
+        exec """ java -Xmx8G -jar $picardLoc CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
+    }
+}
+
+
 convertToSam = {
-        output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+        output.dir=$intermediateDirectory
         exec "samtools view -h -o $output.sam $input.bam", "convertToSam"
 }
 
 
 
 filterShortInserts = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     //exec "awk -F '\t' '((\$1~/@/) || (\$9 <= -50 && \$9 >= -150) || (\$9 <= 150 && \$9 >= 50)) { print \$0 }' $input.sam > $output.sam"
     exec "awk '{ print \$1 '\t' \$2 }' "
 
 }
 
 convertToBam = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     exec "samtools view -S -b input.sam > output.bam"
 }
 
 
 pileUp = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     branch.sample = branch.name
     
     produce(sample + '.snp.vcf', sample + '.indel.vcf') {
@@ -142,7 +167,7 @@ pileUp = {
 }
 
 annotation = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     branch.sample = branch.name
     println "Annotating sample $sample"
     // Version 2 of our annotation
@@ -161,35 +186,47 @@ annotation = {
 
 // filter out mutations found in dbsnp150
 filterdbSnp150 = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     exec "bedtools intersect -v  -a $input.vcf -b $dbSnp150 > $output.vcf"
 }
 
 
-alignmentMetrics = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
-    exec """ samtools index -@ $threads $input.bam > $output.indexed""" , "index"
-    exec """ java -Xmx8G -jar /nesi/project/uoa00571/bin/GenomeAnalysisTK.jar -T DepthOfCoverage -I $input.bam -R /nesi/project/uoa02461/data/hg19/ucsc.hg19.fasta -o $output  --omitDepthOutputAtEachBase --omitIntervalStatistics --omitLocusTable --printBaseCounts -L /nesi/project/uoa00571/data/design_files/S07604514_Regions.bed -ct 1 -ct 10 -ct 30 -ct 50 -ct 100 -ct 200 > $output """, "alignmentMetrics"
-    exec """ java -Xmx8G -jar $picardLoc CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
-}
 
 
 // filter with cosmic mutations - keep anything that is in either cosmic coding or cosmic non-coding vcf's
 filterCosmic = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles"
+    output.dir=$intermediateDirectory
     exec "bedtools intersect  -a $input.vcf -b $cosmic > $output.vcf"
 }
 
 
 count = {
-  output.dir = "/nesi/nobackup/uoa02461/data/intermediateFiles"
-  exec "module load R"
-  exec "echo $input"
-  exec "Rscript serial.R $input snp $output $output2"
-  // then the germline one exec
+  output.dir="/nesi/nobackup/uoa02606/data/intermediateFiles"
+  zipped = "$input1" + ".gz"
+  exec "bgzip -c -f $input1.vcf > $zipped"
+  exec "tabix -f -p vcf $zipped"
+
+  zipped2 = "$input2" + ".gz"
+  exec "bgzip -c -f $input2.vcf > $zipped2"
+  exec "tabix -f -p vcf $zipped2"
+
+
+  //This really doesn't fall over gracefully when the filters are to strict.
+  //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters.
+  //it should be a single function called twice with different parameters.
+  exec "Rscript /nesi/project/uoa00571/src/reportGeneration/filePairs.R $zipped $zipped2 $output"
+  exec "Rscript /nesi/project/uoa00571/src/reportGeneration/filePairsSomatic.R $zipped $zipped2 $output2"
+   //exec "Rscript src/filePairs.R $input1.vcf.gz $input2.vcf.gz $output"
+   //exec "Rscript src/filePairsSomatic.R $input1.vcf.gz $input2.vcf.gz $output2"
+
+
 }
 
 
+reportGeneration ={
+   output.dir="../results"
+   exec "Rscript /nesi/project/uoa00571/src/reportGeneration/generateReport.R $input1 $input2 $output1"
+}
 
 // currently runs qc, doesn't wait for confirmation on whether to continue the run, 
 // trims, and does a 2nd lot of qc to the trimmed reads. 
