@@ -66,8 +66,8 @@ def main(argv):
             # open the new one
             pipelineFile  = open("minimalPipe-"+ patient, "w")
             pipelineFile.write("load \"pipeline\" \n\n")
-            pipelineFile.write("$dataDir="+ dataDirectory)
-            pipelineFile.write("$intermediateDirectory="+ intermediateDirectory + "\n\n")
+            pipelineFile.write("$dataDir=\""+ dataDirectory +"\"\n")
+            pipelineFile.write("$intermediateDirectory=\""+ intermediateDirectory + "\"\n\n")
 
             pipelineFile.write("control = [ \n\t"  + patient + sampleNumber + " : [\""+ dataDirectory + patient  + sampleNumber + "_1.fastq.gz\",\"" + dataDirectory + patient  + sampleNumber + "_2.fastq.gz\"]\n]\n")
             pipelineFile.write("samples = [\n\t")
