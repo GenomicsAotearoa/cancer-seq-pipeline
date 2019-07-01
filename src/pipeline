@@ -5,17 +5,16 @@
 // Report generation function to be added (soon)
 
 
-bwaIndex="/nesi/project/uoa00595/data/hg19/ucsc.hg19.fasta"
-bwaIndexDir="/nesi/project/uoa00595/data/hg19/"
+//bwaIndex= baseDirectory + "data/references/hg19/ucsc.hg19.fasta"
+//bwaIndex= "/blue/project/cancer-seq-pipeline/data/hg19/ucsc.hg19.fasta"
+//bwaIndexDir= "$baseDirectory/data/hg19/"
 
-cosmic="/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
-dbSnp150="/nesi/project/uoa02461/data/dbsnp150.vcf"
+cosmic= "/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
+dbSnp150 = "/nesi/project/uoa02461/data/dbsnp150.vcf"
 picardLoc = "/scale_wlg_nobackup/pan_migration/apps/easybuild/RHEL6.3/westmere/software/picard/2.1.0/picard.jar"
-bindDir="/nesi/nobackup/uoa02461/data/intermediateFiles/"
-singularityBuilds = "/nesi/project/uoa02461/bin/"
+singularityBuilds = "baseDirectory/bin/"
 
-
-qc = {
+qc = {	
     output.dir=$intermediateDirectory
     branch.sample=branch.name
     qcOutput=output.dir + "/fastqcResults"
@@ -31,12 +30,14 @@ unzip = {
 
 
 trim = {
-    output.dir=$intermediateDirectory
+    println"$intermediateDirectory"
+    output.dir = intermediateDirectory
+    println "$output.dir"
     branch.sample=branch.name
     println "Aligning: $sample"
-    transform('trim.gz','trim.gz') {
-        //exec """singularity run --bind $bindDir $singularityBuilds/cutadapt-2.3.simg cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
-        exec """cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
+    produce(sample + '_1.trim.gz','_2.trim.gz') {
+        exec """singularity run --bind $dataDirectory --bind $intermediateDirectory $singularityBuilds/cutadapt.sif cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
+        //exec """cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
 
 
     }
@@ -51,7 +52,7 @@ align = {
     println "$unsortedBam"
     println "$input"
     produce(sample + '.' + type + '.bam') {
-       //exec """singularity run --bind $bindDir --bind $bwaIndexDir bwa.sif bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $unsortedBam""","align"
+       exec """singularity run --bind $intermediateDirectory --bind $bwaIndexDir $singularityBuilds/bwa-0.7.17.simg bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $unsortedBam""","align"
        //exec """singularity run --bind $bindDir ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $unsortedBam""","align"
        exec """bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 | samtools sort -@12 -O BAM -o $output.bam ""","align"
        //exec """samtools sort -@12 -O BAM -o $output.bam $unsortedBam""","align"
