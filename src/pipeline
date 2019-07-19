@@ -5,56 +5,56 @@
 // Report generation function to be added (soon)
 
 
-bwaIndex="/nesi/project/uoa00595/data/hg19/ucsc.hg19.fasta"
-bwaIndexDir="/nesi/project/uoa00595/data/hg19/"
+//bwaIndex= baseDirectory + "data/references/hg19/ucsc.hg19.fasta"
+//bwaIndex= "/blue/project/cancer-seq-pipeline/data/hg19/ucsc.hg19.fasta"
+//bwaIndexDir= "$baseDirectory/data/hg19/"
 
-cosmic="/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
-dbSnp150="/nesi/project/uoa02461/data/dbsnp150.vcf"
+cosmic= "/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
+dbSnp150 = "/nesi/project/uoa02461/data/dbsnp150.vcf"
 picardLoc = "/scale_wlg_nobackup/pan_migration/apps/easybuild/RHEL6.3/westmere/software/picard/2.1.0/picard.jar"
-bindDir="/nesi/nobackup/uoa02461/data/intermediateFiles/"
-singularityBuilds = "/nesi/project/uoa02461/bin/"
+singularityBuilds = "baseDirectory/bin/"
 
-
-qc = {
-    output.dir=$intermediateDirectory
+qc = {	
+    output.dir=intermediateDirectory
     branch.sample=branch.name
-    qcOutput=output.dir + "/fastqcResults"
+    qcOutput=qcDirectory
     produce(sample + '_1.log', sample + '_2.log'){
         exec """fastqc -t 8 $input1 -o $qcOutput > $output1""", "qc"
         exec """fastqc -t 8 $input2 -o $qcOutput > $output2""", "qc"
     }
 }
 
-unzip = {
-
-}
-
 
 trim = {
-    output.dir=$intermediateDirectory
+    output.dir = intermediateDirectory
     branch.sample=branch.name
-    println "Aligning: $sample"
-    transform('trim.gz','trim.gz') {
-        //exec """singularity run --bind $bindDir $singularityBuilds/cutadapt-2.3.simg cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
-        exec """cutadapt --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz""","trim"
-
-
+    report = qcDirectory + "/" + sample + ".report.txt"
+    produce(sample + '_1.trim.gz',sample+'_2.trim.gz') {
+        exec """singularity run --bind $dataDirectory --bind $intermediateDirectory $singularityBuilds/cutadapt-2.3.simg --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz > $report ""","trim"
     }
 }
 
 align = {
-    output.dir=$intermediateDirectory
+    output.dir = intermediateDirectory
     requires type: 'the kind of sample being processed: test or control'
     branch.sample=branch.name
-    
-    unsortedBam = bindDir + sample + ".bam"    
-    println "$unsortedBam"
-    println "$input"
-    produce(sample + '.' + type + '.bam') {
-       //exec """singularity run --bind $bindDir --bind $bwaIndexDir bwa.sif bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $unsortedBam""","align"
-       //exec """singularity run --bind $bindDir ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $unsortedBam""","align"
-       exec """bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 | samtools sort -@12 -O BAM -o $output.bam ""","align"
+    unsortedBam = intermediateDirectory + sample + ".bam"    
+
+    produce(sample + '.' + type + '.bam', sample + '.' + type + '.bai') {
+       exec """singularity run --bind $intermediateDirectory --bind $bwaIndexDir $singularityBuilds/bwa-0.7.17.simg bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $unsortedBam""","align"
+	
+       exec """singularity run --bind $intermediateDirectory ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $unsortedBam""","align"
+
+       exec """ samtools index -@ $threads $output.bam $output.bai""" , "index"
+
        //exec """samtools sort -@12 -O BAM -o $output.bam $unsortedBam""","align"
+
+       //exec """bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2  ""","align"
+
+       //exec """bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 | samtools sort -@12 -O BAM -o $output ""","align"
+
+
+
 
     }
 
@@ -62,16 +62,16 @@ align = {
 
 
 removeDuplicates = { 
-    output.dir=$intermediateDirectory
-    println "$input"
-    exec """java -jar  $picardLoc MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE""", "removeDuplicates"
+    output.dir=intermediateDirectory
+    exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/picard_latest.sif MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE""", "removeDuplicates"
+
+    //exec """java -jar  $picardLoc MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE""", "removeDuplicates"
 }   
 
 removeSuplementary = {
-    output.dir=$intermediateDirectory
-    println "$input"
-    exec """samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
-    exec """samtools index $output.bam""","removeSupplementary"
+    output.dir=intermediateDirectory
+    exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
+    exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools index $output.bam""","removeSupplementary"
 }
 
 sortBam = {   
@@ -106,30 +106,27 @@ haplotypeCalling = {
 
 
 
-collectMetrics = {
-    output.dir="/nesi/nobackup/uoa02461/data/intermediateFiles/metrics"
-    requires type: 'the kind of sample being processed: test or control'
-    branch.sample=branch.name
-    from(sample + '.' + type + '.bam'){
-        exec "java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5","collectMetrics"
-    }
-}
 
 alignmentMetrics = {
-    output.dir=$intermediateDirectory
+    output.dir = qcDirectory
+
     requires type: 'the kind of sample being processed: test or control'
     branch.sample=branch.name
-    println "$sample"
-    
+
     // for collecting % on target
     //regions = "/nesi/project/uoa00571/data/design_files/S07604514_Regions.bed"
-    regions = "/nesi/project/uoa02461/data/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
 
-    from(sample + '.' + type + '.bam'){
-        exec """ samtools index -@ $threads $input > $output.indexed""" , "index"
-        exec """ java -Xmx8G -jar /nesi/project/uoa00571/src/cpipe-master/tools/gatk/2.3.9/GenomeAnalysisTK.jar -T DepthOfCoverage -I $input.bam -R /nesi/project/uoa02461/data/hg19/ucsc.hg19.fasta -o $output  --omitDepthOutputAtEachBase --omitIntervalStatistics --omitLocusTable --printBaseCounts -L $regions -ct 1 -ct 10 -ct 30 -ct 50 -ct 100 -ct 200 > $output """, "alignmentMetrics"
-        exec """ java -Xmx8G -jar $picardLoc CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
+    regions = "/nesi/project/uoa02461/data/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
+    inputSample = intermediateDirectory + sample + '.' + type + '.bam'
+
+    produce(sample + "." + type + ".AlignmentMetricsLog",  sample + "." + type + ".sampleHist.pdf", sample + "." + type + ".sampleMetrics.txt") {
+    	//exec """ java -Xmx9G -jar /nesi/project/uoa00571/src/cpipe-master/tools/gatk/2.3.9/GenomeAnalysisTK.jar -T DepthOfCoverage -I $input.bam -R /nesi/project/uoa02461/data/hg19/ucsc.hg19.fasta -o $output  --omitDepthOutputAtEachBase --omitIntervalStatistics --omitLocusTable --printBaseCounts -L $regions -ct 1 -ct 10 -ct 30 -ct 50 -ct 100 -ct 200 > $output """, "alignmentMetrics"
+
+        exec """singularity run --bind $qcDirectory --bind $bwaIndexDir --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/picard_latest.sif CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
+
+    exec """singularity run --bind $qcDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/picard_latest.sif CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5""","collectMetrics"
     }
+	
 }
 
 
@@ -154,31 +151,31 @@ convertToBam = {
 
 
 pileUp = {
-    output.dir=$intermediateDirectory
+    output.dir=intermediateDirectory
     branch.sample = branch.name
     
     produce(sample + '.snp.vcf', sample + '.indel.vcf') {
         from(sample + '*removeSuplementary.bam') {
             // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally. 
             // It'd be really nice if someone could figure out how to fix that he said nonchalantly
-            exec """samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.removeDuplicates.removeSuplementary.bam $input.test.removeDuplicates.removeSuplementary.bam | java -Xmx16g -d64 -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+           // exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.removeDuplicates.removeSuplementary.bam $input.test.removeDuplicates.removeSuplementary.bam | java -Xmx16g -d64 -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+		exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/references/hg19 --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.removeDuplicates.removeSuplementary.bam $input.test.removeDuplicates.removeSuplementary.bam | varscan somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+
         }
     }
 }
 
 annotation = {
-    output.dir=$intermediateDirectory
+    output.dir=intermediateDirectory
     branch.sample = branch.name
-    println "Annotating sample $sample"
+    refData= baseDir+'/data/references/annovar/'
     // Version 2 of our annotation
     produce(sample + ".annotated.snp.vcf", sample + ".annotated.indel.vcf"){
         from(sample + '*.snp.vcf') {
-            println "$input.vcf"
-            exec """perl /nesi/project/uoa00571/src/table_annovar.pl $input.vcf /nesi/project/uoa00571/data/annovar/db -buildver hg19 -outfile $output.annotated.snp.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+            exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.snp.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
         }
         from(sample + '*.indel.vcf'){
-            println "$input"
-            exec """perl /nesi/project/uoa00571/src/table_annovar.pl $input.vcf /nesi/project/uoa00571/data/annovar/db  -buildver hg19 -outfile $output.annotated.indel.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+            exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.indel.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
 
         }
     }
@@ -201,21 +198,21 @@ filterCosmic = {
 
 
 count = {
-  output.dir="/nesi/nobackup/uoa02606/data/intermediateFiles"
+  output.dir=intermediateDirectory
   zipped = "$input1" + ".gz"
   exec "bgzip -c -f $input1.vcf > $zipped"
   exec "tabix -f -p vcf $zipped"
 
   zipped2 = "$input2" + ".gz"
-  exec "bgzip -c -f $input2.vcf > $zipped2"
-  exec "tabix -f -p vcf $zipped2"
-
+  //exec "bgzip -c -f $input2.vcf > $zipped2"
+  //exec "tabix -f -p vcf $zipped2"
+  zipped2 = zipped
 
   //This really doesn't fall over gracefully when the filters are to strict.
   //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters.
   //it should be a single function called twice with different parameters.
-  exec "Rscript /nesi/project/uoa00571/src/reportGeneration/filePairs.R $zipped $zipped2 $output"
-  exec "Rscript /nesi/project/uoa00571/src/reportGeneration/filePairsSomatic.R $zipped $zipped2 $output2"
+  exec """Rscript filePairs.R $zipped $zipped2 $output"""
+  exec """Rscript filePairs.R $zipped $zipped2 $output2"""
    //exec "Rscript src/filePairs.R $input1.vcf.gz $input2.vcf.gz $output"
    //exec "Rscript src/filePairsSomatic.R $input1.vcf.gz $input2.vcf.gz $output2"
 
@@ -224,22 +221,7 @@ count = {
 
 
 reportGeneration ={
-   output.dir="../results"
-   exec "Rscript /nesi/project/uoa00571/src/reportGeneration/generateReport.R $input1 $input2 $output1"
+   output.dir="/blue/project/cancer-seq-pipeline/results/"
+   exec """Rscript generateReport.R $input1 $input2 $output.html"""
 }
-
-// currently runs qc, doesn't wait for confirmation on whether to continue the run, 
-// trims, and does a 2nd lot of qc to the trimmed reads. 
-// Once this is parrallelized, should be able to insert multiqc steps. 
-
-// run with qc
-//run { [qc + trim] +  [qc + align] + removeDuplicates + removeSuppplementary + pileUp + variantCalling + annotation}
-
-// actual plasma run ...
-//run { trim +  align + markDuplicates + removeSuppplementary +  convertToSam + filterShortInserts + convertToBam + pileUp + variantCalling + annotation + filterdbSnp150 + filterCosmic}
-//run {
-//   "%_*.fastq.gz" * [trim] + "%_*.trim" * [align] + "%_*" * [removeDuplicates] + "%_*" * [removeSuppplementary] + branches * [pileUp] +  "%_*" * [annotation]
-//}
-
-//run { "%_*.fastq.gz" * [trim]  + "%_*.trim" * [align] + "%_*" * [removeDuplicates, alignmentMetrics] }
 
