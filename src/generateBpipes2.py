@@ -47,14 +47,21 @@ def main(argv):
     except NameError:
         print("intermediateDirectory not defined correctly in pipeConfig.py")
 
+    try:
+        qcDirectory
+    except NameError:
+        print("qcDirectory not defined correctly in pipeConfig.py")
+
 
 
     currentPatient = ""
     
     
-    workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary ], samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary  ]] + samples * [pileUp] + samples *[annotation] + count + reportGeneration } \n\n "
+   # workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary ], samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary  ]] + samples * [pileUp] + samples *[annotation] + count + reportGeneration } \n\n "
+
     #//QC run
-    #//run{ [control * [qc] + control * [trim + align.using(type:'control')] + control * [alignmentMetrics.using(type:'control'), collectMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim + align.using(type:'test')] + samples * [ alignmentMetrics.using(type:'control') ,collectMetrics.using(type:'test')]] }"
+    workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') +  alignmentMetrics.using(type:'test') ]] }\n
+		run{ [control * [qc] + control * [trim + qc], samples * [qc] + samples *  [trim + qc]]}"
 
     for index, row in df.iterrows():
         patient = row["patient"]
@@ -75,6 +82,8 @@ def main(argv):
             pipelineFile.write("bwaIndex =\"" + bwaIndex + "\"\n")
             pipelineFile.write("bwaIndexDir =\"" + bwaIndexDir + "\"\n")
             pipelineFile.write("dataDirectory =\"" + dataDirectory + "\"\n")
+            pipelineFile.write("qcDirectory =\"" + qcDirectory + "\"\n")
+
 
 
             pipelineFile.write("intermediateDirectory=\""+ intermediateDirectory + "\"\n\n")
