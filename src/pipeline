@@ -70,15 +70,24 @@ removeDuplicates = {
 
 removeSuplementary = {
     output.dir=intermediateDirectory
-    exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
-    exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools index $output.bam""","removeSupplementary"
+    requires type: 'the kind of sample being processed: test or control'
+
+    branch.sample = branch.name
+
+    produce(sample + '.' + type + '.RSRD.bam', sample + '.' + type +  '.RSRD.bam.bai') {
+	println "$sample"
+	exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
+    	exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""","index"
+
+   }
+    
 }
 
 sortBam = {   
     branch.sample=branch.name
     output.dir=$intermediateDirectory
 
-    produce(sample + '.' + type + 'sorted.bam') {
+    produce(sample + '.sorted.bam') {
         exec """singularity run --bind $bindDir ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output $input""","sortBam"
     }
 }
@@ -153,13 +162,18 @@ convertToBam = {
 pileUp = {
     output.dir=intermediateDirectory
     branch.sample = branch.name
-    
-    produce(sample + '.snp.vcf', sample + '.indel.vcf') {
-        from(sample + '*removeSuplementary.bam') {
+
+
+    produce(sample + '.snp.vcf', sample + '.indel.vcf', sample + '.count') {
+        from(sample + '*RSRD.bam') {
             // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally. 
             // It'd be really nice if someone could figure out how to fix that he said nonchalantly
-           // exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.removeDuplicates.removeSuplementary.bam $input.test.removeDuplicates.removeSuplementary.bam | java -Xmx16g -d64 -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
-		exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/references/hg19 --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.removeDuplicates.removeSuplementary.bam $input.test.removeDuplicates.removeSuplementary.bam | varscan somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+		exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/references/hg19 --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.RSRD.bam $input.test.RSRD.bam | varscan somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+
+	       reference3KBedFile=bwaIndexDir+"hg19.3kb.bed"
+	       exec """bedtools multicov -bams $input.control.RSRD.bam $input.test.RSRD.bam  -bed $reference3KBedFile > $output.count """
+
+
 
         }
     }
@@ -199,6 +213,8 @@ filterCosmic = {
 
 count = {
   output.dir=intermediateDirectory
+  branch.sample=branch.name
+  println"$input1"
   zipped = "$input1" + ".gz"
   exec "bgzip -c -f $input1.vcf > $zipped"
   exec "tabix -f -p vcf $zipped"
@@ -211,8 +227,8 @@ count = {
   //This really doesn't fall over gracefully when the filters are to strict.
   //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters.
   //it should be a single function called twice with different parameters.
-  exec """Rscript filePairs.R $zipped $zipped2 $output"""
-  exec """Rscript filePairs.R $zipped $zipped2 $output2"""
+  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $output"""
+  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $output2"""
    //exec "Rscript src/filePairs.R $input1.vcf.gz $input2.vcf.gz $output"
    //exec "Rscript src/filePairsSomatic.R $input1.vcf.gz $input2.vcf.gz $output2"
 
@@ -222,6 +238,7 @@ count = {
 
 reportGeneration ={
    output.dir="/blue/project/cancer-seq-pipeline/results/"
-   exec """Rscript generateReport.R $input1 $input2 $output.html"""
+   branch.sample=branch.name
+   exec """Rscript generateReport.R $input1 $input2 $sample $output.html"""
 }
 
