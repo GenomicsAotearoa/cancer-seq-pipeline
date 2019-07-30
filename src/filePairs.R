@@ -7,7 +7,8 @@ args <- commandArgs(trailingOnly = TRUE)
 snpVCF=args[1]
 indelVCF=args[2]
 intermediateDirectory=args[3]
-out1=args[4]
+baseDirectory=args[4]
+out1=args[5]
 #out2=args[4]
 
 
@@ -41,8 +42,9 @@ tumourName = snpVCF %>%
  
 #tumourName = str_match(snpVCF, "/(.*?)_")[,2]
 
+metadataFile=paste0(baseDirectory,"/data/metadata.txt")
 
-metadata = read_tsv("../data/references/metadata.txt", col_types = cols())
+metadata = read_tsv(metadataFile, col_types = cols())
 mgl = metadata$Michelle.gene.list[!is.na(metadata$Michelle.gene.list)] # define Michelle's gene list
 geneList = paste(mgl,collapse="|")
 
@@ -80,8 +82,8 @@ FF = FilterRules(list(geneFilter, infoFilter, genoFilter ))
 ## This section goes through the data frame holding the file locations, row by row, 
 ## filters, then extracts the data required for the report, returning a dataframe. 
 
-
-report.df = read_csv("../data/references/dataColumns.csv")
+reportFile=paste0(baseDirectory,"/data/dataColumns.csv")
+report.df = read_csv(reportFile)
 infoVariables = report.df %>%
     filter(location == "info")
 
@@ -159,9 +161,6 @@ indels.info$In.Cosmic.Census.Somatic.Nov17 = ifelse(indels.info$Main_gene %in% c
 indels.info$Variant.gene.in.ACMG.57.gene.list = ifelse(indels.info$Main_gene %in% acmgGenes | indels.info$DownstreamGene %in% acmgGenes, "YES", "NO") 
 
 
-#print(colnames(snp.info))
-#print(colnames(indels.info))
- 
 
 mutations.info = rbind(snp.info, indels.info)
 mutations.info$tumour = rep(tumourName,  times = nrow(mutations.info))
@@ -194,7 +193,6 @@ dnaObj = dnaObj %>%
 	mutate(tumourName=tumourName +1) %>%
 	mutate(tumourBase=tumourBase +1) 
 logratio = log2(dnaObj$tumourName) - log2(dnaObj$tumourBase)
-print(logratio)
 
 	
 	
@@ -209,7 +207,6 @@ plotSampleCP(CNA.object, "/blue/project/cancer-seq-pipeline/data/intermediate/pa
 
 
 cgiFile=paste0(intermediateDirectory,"/", tumourName, "/mutation_analysis.tsv")
-print(cgiFile)
 CGI = read_tsv(cgiFile) %>%
     dplyr::select(one_of(c("sample", "gene", "cdna" ,"protein", "consequence", "cadd_phred", "driver_gene_source", "driver_statement"))) %>%
     rename_at(vars(colnames(.)), ~ c("position", "CGI_gene","CGI_cDNA","CGI_protein", "CGI_consequences", "CGI_CADD_Phed", "CGI_annotation", "CGI_driver")) %>%
@@ -219,7 +216,6 @@ CGI = read_tsv(cgiFile) %>%
 
 merged = merge(as.data.frame(mutations.info), CGI)
 
-print(out1)
 write_tsv(merged, out1)
 #info.df
 #geno(vcf)
