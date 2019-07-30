@@ -1,3 +1,4 @@
+#!/usr/bin/python
 
 import pandas as pd
 import sys, getopt
@@ -57,11 +58,10 @@ def main(argv):
     currentPatient = ""
     
     
-   # workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary ], samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary  ]] + samples * [pileUp] + samples *[annotation] + count + reportGeneration } \n\n "
+    workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary.using(type:'control') ], samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary.using(type:'test')  ]] + samples * [pileUp] + samples *[annotation] + count + reportGeneration } \n\n "
 
     #//QC run
-    workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') +  alignmentMetrics.using(type:'test') ]] }\n
-		run{ [control * [qc] + control * [trim + qc], samples * [qc] + samples *  [trim + qc]]}"
+   # workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') +  alignmentMetrics.using(type:'test') ]] }\n \n\n run{ [control * [qc] + control * [trim + qc], samples * [qc] + samples *  [trim + qc]]}"
 
     for index, row in df.iterrows():
         patient = row["patient"]
@@ -77,10 +77,13 @@ def main(argv):
             # open the new one
             pipelineFile  = open("minimalPipe-"+ patient, "w")
             pipelineFile.write("load \"pipeline\" \n\n")
-            pipelineFile.write("baseDir=\""+ baseDirectory +"\"\n")
-			pipelineFile.write("singularityBuilds=\"" + baseDirectory + "/bin/\"\n")
+
+            pipelineFile.write("baseDirectory=\""+ baseDirectory +"\"\n")
+ 	          pipelineFile.write("singularityBuilds=\"" + baseDirectory + "/bin/\"\n")
             pipelineFile.write("bwaIndex =\"" + bwaIndex + "\"\n")
-            pipelineFile.write("bwaIndexDir =\"" + bwaIndexDir + "\"\n")
+            pipelineFile.write("referenceDirectory =\"" + referenceDirectory + "\"\n")
+            pipelineFile.write("hg19RefDirectory =\"" + hg19RefDirectory + "\"\n")
+			
             pipelineFile.write("dataDirectory =\"" + dataDirectory + "\"\n")
             pipelineFile.write("qcDirectory =\"" + qcDirectory + "\"\n")
 
