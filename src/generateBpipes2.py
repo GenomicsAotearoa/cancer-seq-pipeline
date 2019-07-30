@@ -33,9 +33,9 @@ def main(argv):
         print("file " + filename + "doesn't exist or is malformed")
 	
     try:
-	dataDirectory
+		dataDirectory
     except NameError:
-	print("dataDirectory not defined correctly in pipeConfig.py")		
+		print("dataDirectory not defined correctly in pipeConfig.py")		
 
 
     try:
@@ -77,8 +77,9 @@ def main(argv):
             # open the new one
             pipelineFile  = open("minimalPipe-"+ patient, "w")
             pipelineFile.write("load \"pipeline\" \n\n")
+
             pipelineFile.write("baseDirectory=\""+ baseDirectory +"\"\n")
- 	    pipelineFile.write("singularityBuilds=\"" + baseDirectory + "/bin/\"\n")
+ 	          pipelineFile.write("singularityBuilds=\"" + baseDirectory + "/bin/\"\n")
             pipelineFile.write("bwaIndex =\"" + bwaIndex + "\"\n")
             pipelineFile.write("referenceDirectory =\"" + referenceDirectory + "\"\n")
             pipelineFile.write("hg19RefDirectory =\"" + hg19RefDirectory + "\"\n")
