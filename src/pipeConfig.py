@@ -4,7 +4,9 @@ intermediateDirectory = "/blue/project/cancer-seq-pipeline/data/intermediate/"
 qcDirectory = "/blue/project/cancer-seq-pipeline/data/intermediate/qc"
 
 bwaIndex= "/blue/project/cancer-seq-pipeline/data/references/hg19/ucsc.hg19.fasta"
-bwaIndexDir= "/blue/project/cancer-seq-pipeline/data/references/hg19/"
+
+referenceDirectory="/blue/project/cancer-seq-pipeline/data/references/"
+hg19RefDirectory="/blue/project/cancer-seq-pipeline/data/references/hg19/"
 
 
 
