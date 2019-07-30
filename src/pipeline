@@ -7,7 +7,7 @@
 
 //bwaIndex= baseDirectory + "data/references/hg19/ucsc.hg19.fasta"
 //bwaIndex= "/blue/project/cancer-seq-pipeline/data/hg19/ucsc.hg19.fasta"
-//bwaIndexDir= "$baseDirectory/data/hg19/"
+//hg19RefDirectory= "$baseDirectory/data/hg19/"
 
 cosmic= "/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
 dbSnp150 = "/nesi/project/uoa02461/data/dbsnp150.vcf"
@@ -41,7 +41,7 @@ align = {
     unsortedBam = intermediateDirectory + sample + ".bam"    
 
     produce(sample + '.' + type + '.bam', sample + '.' + type + '.bai') {
-       exec """singularity run --bind $intermediateDirectory --bind $bwaIndexDir $singularityBuilds/bwa-0.7.17.simg bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $unsortedBam""","align"
+       exec """singularity run --bind $intermediateDirectory --bind $hg19RefDirectory $singularityBuilds/bwa-0.7.17.simg bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $unsortedBam""","align"
 	
        exec """singularity run --bind $intermediateDirectory ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $unsortedBam""","align"
 
@@ -131,7 +131,7 @@ alignmentMetrics = {
     produce(sample + "." + type + ".AlignmentMetricsLog",  sample + "." + type + ".sampleHist.pdf", sample + "." + type + ".sampleMetrics.txt") {
     	//exec """ java -Xmx9G -jar /nesi/project/uoa00571/src/cpipe-master/tools/gatk/2.3.9/GenomeAnalysisTK.jar -T DepthOfCoverage -I $input.bam -R /nesi/project/uoa02461/data/hg19/ucsc.hg19.fasta -o $output  --omitDepthOutputAtEachBase --omitIntervalStatistics --omitLocusTable --printBaseCounts -L $regions -ct 1 -ct 10 -ct 30 -ct 50 -ct 100 -ct 200 > $output """, "alignmentMetrics"
 
-        exec """singularity run --bind $qcDirectory --bind $bwaIndexDir --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/picard_latest.sif CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
+        exec """singularity run --bind $qcDirectory --bind $hg19RefDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/picard_latest.sif CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
 
     exec """singularity run --bind $qcDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/picard_latest.sif CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5""","collectMetrics"
     }
@@ -163,14 +163,13 @@ pileUp = {
     output.dir=intermediateDirectory
     branch.sample = branch.name
 
-
     produce(sample + '.snp.vcf', sample + '.indel.vcf', sample + '.count') {
         from(sample + '*RSRD.bam') {
             // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally. 
             // It'd be really nice if someone could figure out how to fix that he said nonchalantly
-		exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/references/hg19 --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.RSRD.bam $input.test.RSRD.bam | varscan somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+		exec """singularity run --bind $hg19RefDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.RSRD.bam $input.test.RSRD.bam | varscan somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
 
-	       reference3KBedFile=bwaIndexDir+"hg19.3kb.bed"
+	       reference3KBedFile=hg19RefDirectory+"hg19.3kb.bed"
 	       exec """bedtools multicov -bams $input.control.RSRD.bam $input.test.RSRD.bam  -bed $reference3KBedFile > $output.count """
 
 
@@ -182,7 +181,7 @@ pileUp = {
 annotation = {
     output.dir=intermediateDirectory
     branch.sample = branch.name
-    refData= baseDir+'/data/references/annovar/'
+    refData= baseDirectory+'/data/references/annovar/'
     // Version 2 of our annotation
     produce(sample + ".annotated.snp.vcf", sample + ".annotated.indel.vcf"){
         from(sample + '*.snp.vcf') {
@@ -227,8 +226,8 @@ count = {
   //This really doesn't fall over gracefully when the filters are to strict.
   //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters.
   //it should be a single function called twice with different parameters.
-  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $output"""
-  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $output2"""
+  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $baseDirectory $output"""
+  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $baseDirectory $output2"""
    //exec "Rscript src/filePairs.R $input1.vcf.gz $input2.vcf.gz $output"
    //exec "Rscript src/filePairsSomatic.R $input1.vcf.gz $input2.vcf.gz $output2"
 
@@ -239,6 +238,6 @@ count = {
 reportGeneration ={
    output.dir="/blue/project/cancer-seq-pipeline/results/"
    branch.sample=branch.name
-   exec """Rscript generateReport.R $input1 $input2 $sample $output.html"""
+   exec """Rscript generateReport.R $input1 $input2 $baseDirectory $output.html"""
 }
 
