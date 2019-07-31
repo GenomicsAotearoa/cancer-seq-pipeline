@@ -38,24 +38,13 @@ align = {
     output.dir = intermediateDirectory
     requires type: 'the kind of sample being processed: test or control'
     branch.sample=branch.name
-    unsortedBam = intermediateDirectory + sample + ".bam"    
-    print "$unsortedBam"
 
     produce(sample + '.' + type + '.bam', sample + '.' + type + '.bai', sample + '.' + type + '.unsorted') {
        exec """singularity run --bind $intermediateDirectory --bind $hg19RefDirectory $singularityBuilds/bwa-0.7.17.simg bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $output.unsorted""","align"
 	
        exec """singularity run --bind $intermediateDirectory ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
 
-       exec """ samtools index -@ $threads $output.bam $output.bai""" , "index"
-
-       //exec """samtools sort -@12 -O BAM -o $output.bam $unsortedBam""","align"
-
-       //exec """bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2  ""","align"
-
-       //exec """bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 | samtools sort -@12 -O BAM -o $output ""","align"
-
-
-
+       exec """ samtools index -@ $threads $output.bam $output.bam.bai""" , "index"
 
     }
 
@@ -97,9 +86,11 @@ sortBam = {
 
 
 markDuplicates = {
-    output.dir=$intermediateDirectory
+    output.dir=intermediateDirectory
     // we only want to mark duplicates, not remove them. 
-    exec "singularity run --bind $bindDir $singularityBuilds/picard-2.18.4.simg java -jar /opt/nesi/mahuika/picard/2.1.0/picard.jar MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt TMP_DIR='/nesi/project/uoa02461/data/tmp' CREATE_INDEX=TRUE", "markDuplicates"
+    from('*.bam') {
+        exec """singularity run --bind $intermediateDirectory $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt TMP_DIR=$intermediateDirectory CREATE_INDEX=TRUE""", "markDuplicates"
+    }
 }
 
 recalibrate = {
