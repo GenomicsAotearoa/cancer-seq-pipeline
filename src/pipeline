@@ -39,7 +39,7 @@ align = {
     requires type: 'the kind of sample being processed: test or control'
     branch.sample=branch.name
 
-    produce(sample + '.' + type + '.bam', sample + '.' + type + '.bai', sample + '.' + type + '.unsorted') {
+    produce(sample + '.' + type + '.aligned.bam', sample + '.' + type + '.aligned.bam.bai', sample + '.' + type + '.unsorted') {
        exec """singularity run --bind $intermediateDirectory --bind $hg19RefDirectory $singularityBuilds/bwa-0.7.17.simg bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $output.unsorted""","align"
 	
        exec """singularity run --bind $intermediateDirectory ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
@@ -64,10 +64,10 @@ removeSuplementary = {
 
     branch.sample = branch.name
 
-    produce(sample + '.' + type + '.RSRD.bam', sample + '.' + type +  '.RSRD.bam.bai') {
-	println "$sample"
-	exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
-    	exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""","index"
+    produce(sample + '.' + type + '.RSRD.bam', sample + '.' + type +  '.RSRD.bam.bai', sample + '.' + type + '._dup_metrics.txt') {
+	    println "$sample"
+	    exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
+  	    exec """singularity run --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""","index"
 
    }
     
@@ -82,15 +82,16 @@ sortBam = {
     }
 }
 
-
-
-
 markDuplicates = {
     output.dir=intermediateDirectory
+    branch.sample=branch.name
+    requires type: 'control or test'
     // we only want to mark duplicates, not remove them. 
-    from('*.bam') {
-        exec """singularity run --bind $intermediateDirectory $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt TMP_DIR=$intermediateDirectory CREATE_INDEX=TRUE""", "markDuplicates"
+    produce(sample + "." + type + ".markDuplicates.bam", sample + "." + type + ".markDuplicates.bam.bai", sample + '.' + type + '._dup_metrics.txt'){
+        exec """singularity run --bind $tmpDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/picard_latest.sif MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt CREATE_INDEX=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
+        exec """ samtools index -@ $threads $output.bam $output.bai""" , "index"
     }
+
 }
 
 recalibrate = {
@@ -151,18 +152,35 @@ convertToBam = {
 }
 
 
+adtex = {
+    output.dir=intermediateDirectory
+    branch.sample = branch.name
+    regions = "/blue/project/cancer-seq-pipeline/data/references/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
+
+    print("$sample")
+    from(sample + '*.bam') {
+            print("$input")
+            exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.markDuplicates.bam --tumor $input.test.markDuplicates.bam --bed $regions --out $intermediateDirectory/sample/adtex ""","pileUp"
+
+    }
+}
+
+
+
 pileUp = {
     output.dir=intermediateDirectory
     branch.sample = branch.name
-
-    produce(sample + '.snp.vcf', sample + '.indel.vcf', sample + '.count') {
-        from(sample + '*RSRD.bam') {
-            // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally. 
+    print("$sample")
+    produce(sample + '.snp.vcf', sample + '.indel.vcf', sample + '.count', sample + '.pileup') {
+        from(sample + '*.bam') {
+            print("$input")
+            // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally.   
             // It'd be really nice if someone could figure out how to fix that he said nonchalantly
-		exec """singularity run --bind $hg19RefDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex  $input.control.RSRD.bam $input.test.RSRD.bam | varscan somatic --mpileup 1 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+		    exec """singularity run --bind $hg19RefDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex -o $output.pileup  $input.control.markDuplicates.bam $input.test.markDuplicates.bam ""","pileUp"
+            exec """ varscan somatic $output.pileup --mpileup 2 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
 
 	       reference3KBedFile=hg19RefDirectory+"hg19.3kb.bed"
-	       exec """bedtools multicov -bams $input.control.RSRD.bam $input.test.RSRD.bam  -bed $reference3KBedFile > $output.count """
+	       exec """bedtools multicov -bams $input.control.markDuplicates.bam $input.test.markDuplicates.bam  -bed $reference3KBedFile > $output.count """
 
 
 
@@ -173,6 +191,7 @@ pileUp = {
 annotation = {
     output.dir=intermediateDirectory
     branch.sample = branch.name
+    print "$sample"
     refData= baseDirectory+'/data/references/annovar/'
     // Version 2 of our annotation
     produce(sample + ".annotated.snp.vcf", sample + ".annotated.indel.vcf"){
@@ -218,10 +237,10 @@ count = {
   //This really doesn't fall over gracefully when the filters are to strict.
   //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters.
   //it should be a single function called twice with different parameters.
-  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $baseDirectory $output"""
-  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $baseDirectory $output2"""
+  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $baseDirectory $output $sample"""
+  exec """Rscript filePairsSomatic.R $zipped $zipped2 $intermediateDirectory $baseDirectory $output2 $sample"""
    //exec "Rscript src/filePairs.R $input1.vcf.gz $input2.vcf.gz $output"
-   //exec "Rscript src/filePairsSomatic.R $input1.vcf.gz $input2.vcf.gz $output2"
+   //exec "Rscript src/filePairsSomatic.R $input2.vcf.gz $input2.vcf.gz $output2"
 
 
 }
