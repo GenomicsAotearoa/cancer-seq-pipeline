@@ -44,7 +44,7 @@ align = {
 	
        exec """singularity run --bind $intermediateDirectory ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
 
-       exec """ samtools index -@ $threads $output.bam $output.bai""" , "index"
+       exec """ samtools index -@ $threads $output.bam $output.bam.bai""" , "index"
 
     }
 

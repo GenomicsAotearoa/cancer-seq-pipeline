@@ -33,9 +33,9 @@ def main(argv):
         print("file " + filename + "doesn't exist or is malformed")
 	
     try:
-		dataDirectory
+        dataDirectory
     except NameError:
-		print("dataDirectory not defined correctly in pipeConfig.py")		
+	    print("dataDirectory not defined correctly in pipeConfig.py")		
 
 
     try:
@@ -58,7 +58,7 @@ def main(argv):
     currentPatient = ""
     
     
-    workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary.using(type:'control') ], samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary.using(type:'test')  ]] + samples * [pileUp] + samples *[annotation] + count + reportGeneration } \n\n "
+    workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates  ], samples *  [trim + align.using(type:'test') + markDuplicates  ]] + samples * [pileUp] + samples *[annotation] + count + reportGeneration } \n\n "
 
     #//QC run
    # workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') +  alignmentMetrics.using(type:'test') ]] }\n \n\n run{ [control * [qc] + control * [trim + qc], samples * [qc] + samples *  [trim + qc]]}"
@@ -79,7 +79,7 @@ def main(argv):
             pipelineFile.write("load \"pipeline\" \n\n")
 
             pipelineFile.write("baseDirectory=\""+ baseDirectory +"\"\n")
- 	          pipelineFile.write("singularityBuilds=\"" + baseDirectory + "/bin/\"\n")
+            pipelineFile.write("singularityBuilds=\"" + baseDirectory + "/bin/\"\n")
             pipelineFile.write("bwaIndex =\"" + bwaIndex + "\"\n")
             pipelineFile.write("referenceDirectory =\"" + referenceDirectory + "\"\n")
             pipelineFile.write("hg19RefDirectory =\"" + hg19RefDirectory + "\"\n")
@@ -91,7 +91,7 @@ def main(argv):
 
             pipelineFile.write("intermediateDirectory=\""+ intermediateDirectory + "\"\n\n")
 
-            pipelineFile.write("control = [ \n\t"  + patient + sampleNumber + " :[ \""+ dataDirectory + patient  + sampleNumber + "_1.fastq.gz\",\"" + dataDirectory + patient  + sampleNumber + "_2.fastq.gz\"]\n]\n")
+            pipelineFile.write("control = [ \n\t\""  + patient + sampleNumber + "\" :[ \""+ dataDirectory + patient  + sampleNumber + "_1.fastq.gz\",\"" + dataDirectory + patient  + sampleNumber + "_2.fastq.gz\"]\n]\n")
             pipelineFile.write("samples = [\n\t")
 
             currentPatient = patient
@@ -101,7 +101,7 @@ def main(argv):
 
 
         baseNumber = str(row["compareTo"])
-        pipelineFile.write(patient + baseNumber + " : [\"" + dataDirectory + patient  + baseNumber + "_1.fastq.gz\", \"" + dataDirectory + patient +  baseNumber + "_2.fastq.gz\"]")  
+        pipelineFile.write("\"" + patient + baseNumber +  "\" :[\"" + dataDirectory + patient  + baseNumber + "_1.fastq.gz\", \"" + dataDirectory + patient +  baseNumber + "_2.fastq.gz\"]")  
 
         
     pipelineFile.write("\n]\n")
