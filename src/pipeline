@@ -95,14 +95,14 @@ markDuplicates = {
 }
 
 recalibrate = {
-    output.dir="/nesi/nobackup/uoa02606/data/intermediateFiles"
+    output.dir=intermediateDirectory
     exec """ ../bin/gatk/gatk --java-options "-Xmx16G" BaseRecalibrator -R $bwaIndex -I $input.bam -O $output.table --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/dbsnp_138.hg19.vcf --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf""", "recalibrate"
     exec """ ../bin/gatk/gatk --java-options "-Xmx16G" ApplyBQSR -R $bwaIndex -I $input.bam -bqsr $output.table -O $output.bam""", "recalibrate"
 
 }
 
 haplotypeCalling = {
-    output.dir="/nesi/nobackup/uoa02606/data/intermediateFiles"
+    output.dir=intermediateDirectory
     exec """/scale_wlg_persistent/filesets/project/uoa02606/bin/gatk/gatk --java-options "-Xmx32G" HaplotypeCaller -R $bwaIndex -I $input.bam -O $output.vcf""" ,"haplotyping"
 }
 
@@ -177,7 +177,7 @@ pileUp = {
             // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally.   
             // It'd be really nice if someone could figure out how to fix that he said nonchalantly
 		    exec """singularity run --bind $hg19RefDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex -o $output.pileup  $input.control.markDuplicates.bam $input.test.markDuplicates.bam ""","pileUp"
-            exec """ varscan somatic $output.pileup --mpileup 2 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+            exec """ varscan somatic $output.pileup --mpileup 4 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
 
 	       reference3KBedFile=hg19RefDirectory+"hg19.3kb.bed"
 	       exec """bedtools multicov -bams $input.control.markDuplicates.bam $input.test.markDuplicates.bam  -bed $reference3KBedFile > $output.count """
@@ -224,23 +224,24 @@ filterCosmic = {
 count = {
   output.dir=intermediateDirectory
   branch.sample=branch.name
-  println"$input1"
-  zipped = "$input1" + ".gz"
-  exec "bgzip -c -f $input1.vcf > $zipped"
-  exec "tabix -f -p vcf $zipped"
+  print(input)
+  produce(sample + '.snp.vcf.gz', sample + '.indel.vcf.gz',   sample + '.germline.csv',  sample + '.somatic.csv') {
+    from(sample + '*.vcf') {
+        
 
-  zipped2 = "$input2" + ".gz"
-  //exec "bgzip -c -f $input2.vcf > $zipped2"
-  //exec "tabix -f -p vcf $zipped2"
-  zipped2 = zipped
+        exec """bgzip -c -f $input.annotated.snp.vcf > $output.snp.vcf.gz"""
+        exec """tabix -f -p vcf $output.snp.vcf.gz"""
+
+        exec """bgzip -c -f $input.annotated.indel.vcf > $output.indel.vcf.gz"""
+        exec """tabix -f -p vcf $output.indel.vcf.gz"""
 
   //This really doesn't fall over gracefully when the filters are to strict.
   //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters.
   //it should be a single function called twice with different parameters.
-  exec """Rscript filePairs.R $zipped $zipped2 $intermediateDirectory $baseDirectory $output $sample"""
-  exec """Rscript filePairsSomatic.R $zipped $zipped2 $intermediateDirectory $baseDirectory $output2 $sample"""
-   //exec "Rscript src/filePairs.R $input1.vcf.gz $input2.vcf.gz $output"
-   //exec "Rscript src/filePairsSomatic.R $input2.vcf.gz $input2.vcf.gz $output2"
+        exec """Rscript filePairs.R $output.snp.vcf.gz $output.indel.vcf.gz $intermediateDirectory $baseDirectory $output.germline.csv $sample"""
+        exec """Rscript filePairsSomatic.R $output.snp.vcf.gz $output.indel.vcf.gz $intermediateDirectory $baseDirectory $output.somatic.csv $sample"""
+     }
+ }
 
 
 }
@@ -249,6 +250,7 @@ count = {
 reportGeneration ={
    output.dir="/blue/project/cancer-seq-pipeline/results/"
    branch.sample=branch.name
-   exec """Rscript generateReport.R $input1 $input2 $baseDirectory $output.html"""
+    // The first input needs to be the somatic calls
+   exec """Rscript generateReport.R $input2 $input1 $baseDirectory $output.html"""
 }
 
