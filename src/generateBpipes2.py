@@ -22,10 +22,6 @@ def main(argv):
 
     args = parser.parse_args()
     
-	
-    # This needs to come from a config file rather than be hardcoded
-    #dataDir="/nesi/project/uoa02461/data/raw/gastric/"
-    
 
     try:
         df = pd.read_csv (args.comparisons)
@@ -45,13 +41,23 @@ def main(argv):
 
     try:
         intermediateDirectory
+        if not os.path.exists(intermediateDirectory):
+            os.makedirs(intermediateDirectory)
     except NameError:
         print("intermediateDirectory not defined correctly in pipeConfig.py")
 
     try:
         qcDirectory
+        if not os.path.exists(qcDirectory):
+            os.makedirs(qcDirectory)
     except NameError:
         print("qcDirectory not defined correctly in pipeConfig.py")
+
+    try:
+        tmpDirectory
+    except NameError:
+        print("tmp Directory not defined correctly in pipeConfig.py")
+
 
 
 
@@ -86,6 +92,7 @@ def main(argv):
 			
             pipelineFile.write("dataDirectory =\"" + dataDirectory + "\"\n")
             pipelineFile.write("qcDirectory =\"" + qcDirectory + "\"\n")
+            pipelineFile.write("tmpDirectory =\"" + tmpDirectory + "\"\n")
 
 
 
