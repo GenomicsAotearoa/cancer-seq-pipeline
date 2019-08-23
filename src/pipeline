@@ -87,8 +87,9 @@ markDuplicates = {
     branch.sample=branch.name
     requires type: 'control or test'
     // we only want to mark duplicates, not remove them. 
-    produce(sample + "." + type + ".markDuplicates.bam", sample + "." + type + ".markDuplicates.bam.bai", sample + '.' + type + '._dup_metrics.txt'){
-        exec """singularity run --bind $tmpDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/picard_latest.sif MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt CREATE_INDEX=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
+    produce(sample + "." + type + ".markDuplicates.bam", sample + "." + type + ".markDuplicates.bam.bai", sample + '.' + type + '._dup_metrics.txt', sample + '.' + type + '.markDuplicates.unsorted'){
+        exec """singularity run --bind $tmpDirectory --bind /blue/project/cancer-seq-pipeline/data/intermediate/ /blue/project/cancer-seq-pipeline/bin/picard_latest.sif MarkDuplicates I=$input.bam O=$output.unsorted M=$output._dup_metrics.txt CREATE_INDEX=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
+        exec """singularity run --bind $intermediateDirectory ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
         exec """ samtools index -@ $threads $output.bam $output.bai""" , "index"
     }
 
@@ -222,28 +223,24 @@ filterCosmic = {
 
 
 count = {
-  output.dir=intermediateDirectory
-  branch.sample=branch.name
-  print(input)
-  produce(sample + '.snp.vcf.gz', sample + '.indel.vcf.gz',   sample + '.germline.csv',  sample + '.somatic.csv') {
-    from(sample + '*.vcf') {
-        
+    output.dir=intermediateDirectory
+    branch.sample=branch.name
+    produce(sample + '.snp.vcf.gz', sample + '.indel.vcf.gz',   sample + '.germline.csv',  sample + '.somatic.csv') {
+        from(sample + '*.vcf') {
+            exec """bgzip -c -f $input.annotated.snp.vcf > $output.snp.vcf.gz"""
+            exec """tabix -f -p vcf $output.snp.vcf.gz"""
 
-        exec """bgzip -c -f $input.annotated.snp.vcf > $output.snp.vcf.gz"""
-        exec """tabix -f -p vcf $output.snp.vcf.gz"""
+            exec """bgzip -c -f $input.annotated.indel.vcf > $output.indel.vcf.gz"""
+            exec """tabix -f -p vcf $output.indel.vcf.gz"""
 
-        exec """bgzip -c -f $input.annotated.indel.vcf > $output.indel.vcf.gz"""
-        exec """tabix -f -p vcf $output.indel.vcf.gz"""
+            //This really doesn't fall over gracefully when the filters are to strict.
+            //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters.
+            //it should be a single function called twice with different parameters.
 
-  //This really doesn't fall over gracefully when the filters are to strict.
-  //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters.
-  //it should be a single function called twice with different parameters.
-        exec """Rscript filePairs.R $output.snp.vcf.gz $output.indel.vcf.gz $intermediateDirectory $baseDirectory $output.germline.csv $sample"""
-        exec """Rscript filePairsSomatic.R $output.snp.vcf.gz $output.indel.vcf.gz $intermediateDirectory $baseDirectory $output.somatic.csv $sample"""
-     }
- }
-
-
+            exec """Rscript filePairs.R $output.snp.vcf.gz $output.indel.vcf.gz $intermediateDirectory $baseDirectory $output.germline.csv $sample"""
+            exec """Rscript filePairsSomatic.R $output.snp.vcf.gz $output.indel.vcf.gz $intermediateDirectory $baseDirectory $output.somatic.csv $sample"""
+        }
+    }
 }
 
 
@@ -251,6 +248,10 @@ reportGeneration ={
    output.dir="/blue/project/cancer-seq-pipeline/results/"
    branch.sample=branch.name
     // The first input needs to be the somatic calls
-   exec """Rscript generateReport.R $input2 $input1 $baseDirectory $output.html"""
+    produce(sample + '.html'){
+        from (sample + '*.csv'){
+            exec """Rscript generateReport.R $input.somatic.csv $input.germline.csv $baseDirectory $output.html"""
+        }
+    }
 }
 
