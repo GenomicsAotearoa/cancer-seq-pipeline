@@ -5,8 +5,10 @@
 // Report generation function to be added (soon)
 
 
-cosmic= "/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
-dbSnp150 = "/nesi/project/uoa02461/data/dbsnp150.vcf"
+// cosmic= "/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
+// dbSnp150 = "/nesi/project/uoa02461/data/dbsnp150.vcf"
+cosmic= "/nesi/project/uoa00571/new_pipeline/data/references/cosmicCodingMutations.vcf"
+dbSnp150 = "/nesi/project/uoa00571/new_pipeline/data/references/dbsnp150.vcf"
 picardLoc = "/scale_wlg_nobackup/pan_migration/apps/easybuild/RHEL6.3/westmere/software/picard/2.1.0/picard.jar"
 
 qc = {	
@@ -40,19 +42,24 @@ align = {
 	
        exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
 
-       exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg index -@ $threads $output.bam $output.bam.bai""" , "index"
+       exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""" , "index"
 
     }
 
 }
 
 
-removeDuplicates = { 
+removeDuplicates = {
     output.dir=intermediateDirectory
-    exec """singularity run --bind $intermediateDirectory --bind $sigh $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE""", "removeDuplicates"
-
-    //exec """java -jar  $picardLoc MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE""", "removeDuplicates"
-}   
+    branch.sample=branch.name
+    requires type: 'control or test'
+    // we only want to mark duplicates, not remove them.
+    produce(sample + "." + type + ".removeDuplicates.bam", sample + "." + type + ".removeDuplicates.bam.bai", sample + '.' + type + '._dup_metrics.txt', sample + "." + type + ".removeDuplicates.unsorted"){
+        exec """singularity run  --bind $intermediateDirectory $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.unsorted M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
+        exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
+        exec """ singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtool index -@ $threads $output.bam $output.bai""" , "index"
+    }
+}
 
 removeSuplementary = {
     output.dir=intermediateDirectory
@@ -62,8 +69,8 @@ removeSuplementary = {
 
     produce(sample + '.' + type + '.RSRD.bam', sample + '.' + type +  '.RSRD.bam.bai', sample + '.' + type + '._dup_metrics.txt') {
 	    println "$sample"
-	    exec """singularity run --bind $intermediateDirectory --bind $sigh $singularityBuilds/samtools-1.9.simg samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
-  	    exec """singularity run --bind $intermediateDirectory --bind $sigh $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""","index"
+	    exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
+  	    exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""","index"
 
    }
     
@@ -83,8 +90,8 @@ markDuplicates = {
     requires type: 'control or test'
     // we only want to mark duplicates, not remove them. 
     produce(sample + "." + type + ".markDuplicates.bam", sample + "." + type + ".markDuplicates.bam.bai", sample + '.' + type + '._dup_metrics.txt'){
-        exec """singularity run --bind $tmpDirectory --bind $intermediateDirectory --bind $sigh $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt CREATE_INDEX=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
-        exec """ samtools index -@ $threads $output.bam $output.bai""" , "index"
+        exec """singularity run --bind $tmpDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt CREATE_INDEX=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
+        exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bai""" , "index"
     }
 
 }
@@ -119,9 +126,9 @@ alignmentMetrics = {
     produce(sample + "." + type + ".AlignmentMetricsLog",  sample + "." + type + ".sampleHist.pdf", sample + "." + type + ".sampleMetrics.txt") {
     	//exec """ java -Xmx9G -jar /nesi/project/uoa00571/src/cpipe-master/tools/gatk/2.3.9/GenomeAnalysisTK.jar -T DepthOfCoverage -I $input.bam -R /nesi/project/uoa02461/data/hg19/ucsc.hg19.fasta -o $output  --omitDepthOutputAtEachBase --omitIntervalStatistics --omitLocusTable --printBaseCounts -L $regions -ct 1 -ct 10 -ct 30 -ct 50 -ct 100 -ct 200 > $output """, "alignmentMetrics"
 
-        exec """singularity run --bind $qcDirectory --bind $hg19RefDirectory --bind $intermediateDirectory --bind $sigh $singularityBuilds/picard_latest.sif CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
+        exec """singularity run --bind $qcDirectory --bind $hg19RefDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
 
-    exec """singularity run --bind $qcDirectory --bind $intermediateDirectory --bind $sigh $singularityBuilds/picard_latest.sif CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5""","collectMetrics"
+    exec """singularity run --bind $qcDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5""","collectMetrics"
     }
 	
 }
@@ -150,12 +157,12 @@ convertToBam = {
 adtex = {
     output.dir=intermediateDirectory
     branch.sample = branch.name
-
     //regions = "$referenceDirectory/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
-    regions = "/projects/uoa00571/design_files/S07604514_Regions_noname.bed"
+    regions = "$referenceDirectory/adtex/S07604514_Regions_noname.bed"
     from(sample + '*.bam') {
-            print("$input")
-            exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.markDuplicates.bam --tumor $input.test.markDuplicates.bam --bed $regions --out $intermediateDirectory/sample/adtex ""","pileUp"
+            //exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.removeDuplicates.bam --tumor $input.test.removeDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/adtex ""","pileUp"
+            //exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.markDuplicates.bam --tumor $input.test.markDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/adtex ""","pileUp"
+            exec """singularity run --bind $referenceDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.markDuplicates.bam --tumor $input.test.markDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/ ""","pileUp"
 
     }
 }
@@ -171,11 +178,14 @@ pileUp = {
             print("$input")
             // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally.   
             // It'd be really nice if someone could figure out how to fix that he said nonchalantly
-		    exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex -o $output.pileup  $input.control.markDuplicates.bam $input.test.markDuplicates.bam ""","pileUp"
-            exec """ varscan somatic $output.pileup --mpileup 4 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+            exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex -o $output.pileup  $input.control.markDuplicates.bam $input.test.markDuplicates.bam ""","pileUp"
+            exec """ java -Xmx32g -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic $output.pileup --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --mpileup --output-snp $output.snp.vcf --output-indel $output.indel.vcf""","pileUp"
 
-	       reference3KBedFile=hg19RefDirectory+"hg19.3kb.bed"
-	       exec """bedtools multicov -bams $input.control.markDuplicates.bam $input.test.markDuplicates.bam  -bed $reference3KBedFile > $output.count """
+            //exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/varscan-2.4.3.simg varscan somatic $output.pileup --mpileup 2 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+
+               reference3KBedFile=hg19RefDirectory+"hg19.3kb.bed"
+               exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate --bind $hg19RefDirectory $singularityBuilds/bedtools.sif bedtools multicov -bams $input.control.markDuplicates.bam $input.test.markDuplicates.bam  -bed $reference3KBedFile > $output.count """, "multicov"
+
 
 
 
@@ -183,11 +193,13 @@ pileUp = {
     }
 }
 
+
+
 annotation = {
     output.dir=intermediateDirectory
     branch.sample = branch.name
     print "$sample"
-    refData= baseDirectory+'/data/references/annovar/'
+    //refData= baseDirectory+'/data/references/annovar/'
     // Version 2 of our annotation
     produce(sample + ".annotated.snp.vcf", sample + ".annotated.indel.vcf"){
         from(sample + '*.snp.vcf') {

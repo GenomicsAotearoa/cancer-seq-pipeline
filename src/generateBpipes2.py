@@ -63,10 +63,15 @@ def main(argv):
 
     currentPatient = ""
     
-    
-    workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates  ], samples *  [trim + align.using(type:'test') + markDuplicates  ]] + samples * [pileUp] + samples *[annotation] + count + reportGeneration } \n\n "
+    ## original
+    ##workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates.using(type:'control')  ], samples *  [trim + align.using(type:'test') + markDuplicates.using(type:'test')  ]] + samples * [pileUp] + samples *[annotation] + samples * [count] + samples *[reportGeneration] } \n\n "
 
-    #workflow = "run { [  control * [trim + align.using(type:'control') + removeDuplicates + removeSuplementary ],   samples *  [trim + align.using(type:'test') + removeDuplicates + removeSuplementary ]] + samples * [  pileUp  ] + samples * [annotation] }"
+    #workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates  ], samples *  [trim + align.using(type:'test') + markDuplicates  ]] + samples * [pileUp] + samples *[annotation] + samples * [count] + samples *[reportGeneration] } \n\n "
+
+    # ADTex run
+    workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates.using(type:'control')  ], samples *  [trim + align.using(type:'test') + markDuplicates.using(type:'test')  ]] + samples * [pileUp] + samples *[annotation] + samples *[adtex]  } \n\n "
+    #workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates  ], samples *  [trim + align.using(type:'test') + markDuplicates  ]] + samples * [pileUp] + samples *[annotation] + samples *[adtex]  } \n\n "
+
     #//QC run
    # workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') +  alignmentMetrics.using(type:'test') ]] }\n \n\n run{ [control * [qc] + control * [trim + qc], samples * [qc] + samples *  [trim + qc]]}"
 
@@ -86,18 +91,20 @@ def main(argv):
             pipelineFile.write("load \"pipeline\" \n\n")
 
             pipelineFile.write("baseDirectory=\""+ baseDirectory +"\"\n")
-            pipelineFile.write("singularityBuilds=\"" + singularityBuilds + "/\"\n")
+            pipelineFile.write("singularityBuilds=\"" + singularityBuilds + "\"\n")
             pipelineFile.write("bwaIndex =\"" + bwaIndex + "\"\n")
             pipelineFile.write("referenceDirectory =\"" + referenceDirectory + "\"\n")
             pipelineFile.write("hg19RefDirectory =\"" + hg19RefDirectory + "\"\n")
+            pipelineFile.write("refData =\"" + refData + "\"\n")
+            pipelineFile.write("resultsDirectory=\"" + resultsDirectory + "\"\n")
 			
             pipelineFile.write("dataDirectory =\"" + dataDirectory + "\"\n")
             pipelineFile.write("qcDirectory =\"" + qcDirectory + "\"\n")
-            pipelineFile.write("tmpDirectory =\"" + tmpDirectory + "\"\n")
+            pipelineFile.write("intermediateDirectory=\""+ intermediateDirectory +  "\"\n")
+            pipelineFile.write("expandedIntermediate =\"" + expandedIntermediate + "\"\n")
+            pipelineFile.write("tmpDirectory =\"" + tmpDirectory + "\"\n\n")
 
 
-
-            pipelineFile.write("intermediateDirectory=\""+ intermediateDirectory +  "\"\n\n")
 
 
             pipelineFile.write("control = [ \n\t\""  + patient + sampleNumber + "\" :[ \""+ dataDirectory + patient  + sampleNumber + "_1.fastq.gz\",\"" + dataDirectory + patient  + sampleNumber + "_2.fastq.gz\"]\n]\n")
