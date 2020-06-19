@@ -1,0 +1,259 @@
+// Trial pipeline
+// Needs cutdapt, samtools, bwa, picard, java, varscan2, fastqc, bedtools. 
+// Annovar script table_annovar.pl is a customised version of that provided with annovar, needs to replace the default version.
+//      i.e. you need to install annovar and then replace table_annovar.pl with the copy found with this pipeline
+// Report generation function to be added (soon)
+
+
+// cosmic= "/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
+// dbSnp150 = "/nesi/project/uoa02461/data/dbsnp150.vcf"
+cosmic= "/nesi/project/uoa00571/new_pipeline/data/references/cosmicCodingMutations.vcf"
+dbSnp150 = "/nesi/project/uoa00571/new_pipeline/data/references/dbsnp150.vcf"
+picardLoc = "/scale_wlg_nobackup/pan_migration/apps/easybuild/RHEL6.3/westmere/software/picard/2.1.0/picard.jar"
+
+qc = {	
+    output.dir=intermediateDirectory
+    branch.sample=branch.name
+    qcOutput=qcDirectory
+    produce(sample + '_1.log', sample + '_2.log'){
+        exec """fastqc -t 8 $input1 -o $qcOutput > $output1""", "qc"
+        exec """fastqc -t 8 $input2 -o $qcOutput > $output2""", "qc"
+    }
+}
+
+
+trim = {
+    output.dir = intermediateDirectory
+    branch.sample=branch.name
+    report = qcDirectory + "/" + sample + ".report.txt"
+    produce(sample + '_1.trim.gz',sample+'_2.trim.gz') {
+        exec """singularity run --bind $dataDirectory --bind $intermediateDirectory $singularityBuilds/cutadapt-2.3.simg --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz > $report ""","trim"
+    }
+}
+
+align = {
+    output.dir = intermediateDirectory
+    requires type: 'the kind of sample being processed: test or control'
+    branch.sample=branch.name
+
+
+    produce(sample + '.' + type + '.aligned.bam', sample + '.' + type + '.aligned.bam.bai', sample + '.' + type + '.unsorted') {
+       exec """singularity run --bind $intermediateDirectory --bind $hg19RefDirectory $singularityBuilds/bwa-0.7.17.simg bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $output.unsorted""","align"
+	
+       exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
+
+       exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""" , "index"
+
+    }
+
+}
+
+
+removeDuplicates = {
+    output.dir=intermediateDirectory
+    branch.sample=branch.name
+    requires type: 'control or test'
+    // we only want to mark duplicates, not remove them.
+    produce(sample + "." + type + ".removeDuplicates.bam", sample + "." + type + ".removeDuplicates.bam.bai", sample + '.' + type + '._dup_metrics.txt', sample + "." + type + ".removeDuplicates.unsorted"){
+        exec """singularity run  --bind $intermediateDirectory $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.unsorted M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
+        exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
+        exec """ singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtool index -@ $threads $output.bam $output.bai""" , "index"
+    }
+}
+
+removeSuplementary = {
+    output.dir=intermediateDirectory
+    requires type: 'the kind of sample being processed: test or control'
+
+    branch.sample = branch.name
+
+    produce(sample + '.' + type + '.RSRD.bam', sample + '.' + type +  '.RSRD.bam.bai', sample + '.' + type + '._dup_metrics.txt') {
+	    println "$sample"
+	    exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
+  	    exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""","index"
+
+   }
+    
+}
+
+sortBam = {   
+    branch.sample=branch.name
+    output.dir=$intermediateDirectory
+    produce(sample + '.sorted.bam') {
+        exec """singularity run --bind $bindDir ../bin/samtools-1.9.simg samtools sort -@12 -O BAM -o $output $input""","sortBam"
+    }
+}
+
+markDuplicates = {
+    output.dir=intermediateDirectory
+    branch.sample=branch.name
+    requires type: 'control or test'
+    // we only want to mark duplicates, not remove them. 
+    produce(sample + "." + type + ".markDuplicates.bam", sample + "." + type + ".markDuplicates.bam.bai", sample + '.' + type + '._dup_metrics.txt'){
+        exec """singularity run --bind $tmpDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.bam M=$output._dup_metrics.txt CREATE_INDEX=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
+        exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bai""" , "index"
+    }
+
+}
+
+recalibrate = {
+    output.dir=intermediateDirectory
+    exec """ ../bin/gatk/gatk --java-options "-Xmx16G" BaseRecalibrator -R $bwaIndex -I $input.bam -O $output.table --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/dbsnp_138.hg19.vcf --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf""", "recalibrate"
+    exec """ ../bin/gatk/gatk --java-options "-Xmx16G" ApplyBQSR -R $bwaIndex -I $input.bam -bqsr $output.table -O $output.bam""", "recalibrate"
+
+}
+
+haplotypeCalling = {
+    output.dir=intermediateDirectory
+    exec """/scale_wlg_persistent/filesets/project/uoa02606/bin/gatk/gatk --java-options "-Xmx32G" HaplotypeCaller -R $bwaIndex -I $input.bam -O $output.vcf""" ,"haplotyping"
+}
+
+
+
+
+alignmentMetrics = {
+    output.dir = qcDirectory
+
+    requires type: 'the kind of sample being processed: test or control'
+    branch.sample=branch.name
+
+    // for collecting % on target
+    //regions = "/nesi/project/uoa00571/data/design_files/S07604514_Regions.bed"
+
+    regions = "/nesi/project/uoa02461/data/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
+    inputSample = intermediateDirectory + sample + '.' + type + '.bam'
+
+    produce(sample + "." + type + ".AlignmentMetricsLog",  sample + "." + type + ".sampleHist.pdf", sample + "." + type + ".sampleMetrics.txt") {
+    	//exec """ java -Xmx9G -jar /nesi/project/uoa00571/src/cpipe-master/tools/gatk/2.3.9/GenomeAnalysisTK.jar -T DepthOfCoverage -I $input.bam -R /nesi/project/uoa02461/data/hg19/ucsc.hg19.fasta -o $output  --omitDepthOutputAtEachBase --omitIntervalStatistics --omitLocusTable --printBaseCounts -L $regions -ct 1 -ct 10 -ct 30 -ct 50 -ct 100 -ct 200 > $output """, "alignmentMetrics"
+
+        exec """singularity run --bind $qcDirectory --bind $hg19RefDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
+
+    exec """singularity run --bind $qcDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5""","collectMetrics"
+    }
+	
+}
+
+
+convertToSam = {
+        output.dir=$intermediateDirectory
+        exec "samtools view -h -o $output.sam $input.bam", "convertToSam"
+}
+
+
+
+filterShortInserts = {
+    output.dir=$intermediateDirectory
+    //exec "awk -F '\t' '((\$1~/@/) || (\$9 <= -50 && \$9 >= -150) || (\$9 <= 150 && \$9 >= 50)) { print \$0 }' $input.sam > $output.sam"
+    exec "awk '{ print \$1 '\t' \$2 }' "
+
+}
+
+convertToBam = {
+    output.dir=$intermediateDirectory
+    exec "samtools view -S -b input.sam > output.bam"
+}
+
+
+adtex = {
+    output.dir=intermediateDirectory
+    branch.sample = branch.name
+    //regions = "$referenceDirectory/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
+    regions = "$referenceDirectory/adtex/S07604514_Regions_noname.bed"
+    from(sample + '*.bam') {
+            //exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.removeDuplicates.bam --tumor $input.test.removeDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/adtex ""","pileUp"
+            //exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.markDuplicates.bam --tumor $input.test.markDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/adtex ""","pileUp"
+            exec """singularity run --bind $referenceDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.markDuplicates.bam --tumor $input.test.markDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/ ""","pileUp"
+
+    }
+}
+
+
+
+pileUp = {
+    output.dir=intermediateDirectory
+    branch.sample = branch.name
+    print("$sample")
+    produce(sample + '.snp.vcf', sample + '.indel.vcf', sample + '.count', sample + '.pileup') {
+        from(sample + '*.bam') {
+            print("$input")
+            // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally.   
+            // It'd be really nice if someone could figure out how to fix that he said nonchalantly
+            exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex -o $output.pileup  $input.control.markDuplicates.bam $input.test.markDuplicates.bam ""","pileUp"
+            exec """ java -Xmx32g -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic $output.pileup --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --mpileup --output-snp $output.snp.vcf --output-indel $output.indel.vcf""","pileUp"
+
+            //exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/varscan-2.4.3.simg varscan somatic $output.pileup --mpileup 2 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+
+               reference3KBedFile=hg19RefDirectory+"hg19.3kb.bed"
+               exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate --bind $hg19RefDirectory $singularityBuilds/bedtools.sif bedtools multicov -bams $input.control.markDuplicates.bam $input.test.markDuplicates.bam  -bed $reference3KBedFile > $output.count """, "multicov"
+
+
+
+
+        }
+    }
+}
+
+
+
+annotation = {
+    output.dir=intermediateDirectory
+    branch.sample = branch.name
+    print "$sample"
+    //refData= baseDirectory+'/data/references/annovar/'
+    // Version 2 of our annotation
+    produce(sample + ".annotated.snp.vcf", sample + ".annotated.indel.vcf"){
+        from(sample + '*.snp.vcf') {
+            exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.snp.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+        }
+        from(sample + '*.indel.vcf'){
+            exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.indel.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+
+        }
+    }
+}
+
+// filter out mutations found in dbsnp150
+filterdbSnp150 = {
+    output.dir=$intermediateDirectory
+    exec "bedtools intersect -v  -a $input.vcf -b $dbSnp150 > $output.vcf"
+}
+
+
+
+
+// filter with cosmic mutations - keep anything that is in either cosmic coding or cosmic non-coding vcf's
+filterCosmic = {
+    output.dir=$intermediateDirectory
+    exec "bedtools intersect  -a $input.vcf -b $cosmic > $output.vcf"
+}
+
+
+count = {
+    output.dir=intermediateDirectory
+    branch.sample=branch.name
+    print(input)
+    produce(sample + '.snp.vcf.gz', sample + '.indel.vcf.gz',   sample + '.germline.csv',  sample + '.somatic.csv') {
+        from(sample + '*.vcf') {
+            exec """bgzip -c -f $input.annotated.snp.vcf > $output.snp.vcf.gz"""
+            exec """tabix -f -p vcf $output.snp.vcf.gz"""
+
+            exec """bgzip -c -f $input.annotated.indel.vcf > $output.indel.vcf.gz"""
+            exec """tabix -f -p vcf $output.indel.vcf.gz"""
+
+  //This really doesn't fall over gracefully when the filters are to strict.
+  //Also, this is appallingly bad form. The only difference between the two calls are a bit flag and the presence/absence of some filters.
+  //it should be a single function called twice with different parameters.
+            exec """Rscript filePairs.R $output.snp.vcf.gz $output.indel.vcf.gz $intermediateDirectory $baseDirectory $output.germline.csv $sample"""
+            exec """Rscript filePairsSomatic.R $output.snp.vcf.gz $output.indel.vcf.gz $intermediateDirectory $baseDirectory $output.somatic.csv $sample"""
+        }
+    }
+}
+
+
+reportGeneration ={
+   output.dir=resultsDirectory
+   branch.sample=branch.name
+    // The first input needs to be the somatic calls
+   exec """Rscript generateReport.R $input2 $input1 $baseDirectory $output.html"""
+}
+
