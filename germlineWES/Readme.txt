@@ -1,0 +1,1 @@
+Creating a separate directory for germline WES
