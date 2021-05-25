@@ -7,8 +7,9 @@
 
 // cosmic= "/nesi/project/uoa02461/data/cosmicCodingMutations.vcf"
 // dbSnp150 = "/nesi/project/uoa02461/data/dbsnp150.vcf"
-cosmic= "/nesi/project/uoa00571/new_pipeline/data/references/cosmicCodingMutations.vcf"
-dbSnp150 = "/nesi/project/uoa00571/new_pipeline/data/references/dbsnp150.vcf"
+//cosmic= "/nesi/project/uoa00571/new_pipeline/data/references/cosmicCodingMutations.vcf"
+//dbSnp150 = "/nesi/project/uoa00571/new_pipeline/data/references/dbsnp150.vcf"
+//dbSnp151 = "/nesi/project/uoa00571/new_pipeline/wes/data/references/dbsnp/db151_GRCh38p7/00-All.vcf.gz"
 picardLoc = "/scale_wlg_nobackup/pan_migration/apps/easybuild/RHEL6.3/westmere/software/picard/2.1.0/picard.jar"
 
 qc = {	
@@ -25,9 +26,10 @@ qc = {
 trim = {
     output.dir = intermediateDirectory
     branch.sample=branch.name
-    report = qcDirectory + "/" + sample + ".report.txt"
-    produce(sample + '_1.trim.gz',sample+'_2.trim.gz') {
-        exec """singularity run --bind $dataDirectory --bind $intermediateDirectory $singularityBuilds/cutadapt-2.3.simg --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz > $report ""","trim"
+    // report = qcDirectory + "/" + sample + ".report.txt"
+    print(sample)
+    produce(sample + '_1.trim.gz',sample+'_2.trim.gz', sample +'_report.txt') {
+        exec """singularity run --bind $dataDirectory --bind $intermediateDirectory $singularityBuilds/cutadapt-2.3.simg --minimum-length 50 -a AGATCGGAAGAGC -q 30  -o $output1 -p $output2 $input1.fastq.gz $input2.fastq.gz > $output3 ""","trim"
     }
 }
 
@@ -38,8 +40,9 @@ align = {
 
 
     produce(sample + '.' + type + '.aligned.bam', sample + '.' + type + '.aligned.bam.bai', sample + '.' + type + '.unsorted') {
+       //exec """singularity run --bind $intermediateDirectory --bind $GRCh38RefNoAltDirectory $singularityBuilds/bwa-0.7.17.simg bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $output.unsorted""","align"
        exec """singularity run --bind $intermediateDirectory --bind $hg19RefDirectory $singularityBuilds/bwa-0.7.17.simg bwa mem -t $threads -R "@RG\\tID:$sample\\tSM:$sample\\tLB:$sample\\tPL:ILLUMINA" $bwaIndex $input1 $input2 > $output.unsorted""","align"
-	
+       
        exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
 
        exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""" , "index"
@@ -55,9 +58,9 @@ removeDuplicates = {
     requires type: 'control or test'
     // we only want to mark duplicates, not remove them.
     produce(sample + "." + type + ".removeDuplicates.bam", sample + "." + type + ".removeDuplicates.bam.bai", sample + '.' + type + '._dup_metrics.txt', sample + "." + type + ".removeDuplicates.unsorted"){
-        exec """singularity run  --bind $intermediateDirectory $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.unsorted M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
-        exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
-        exec """ singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtool index -@ $threads $output.bam $output.bai""" , "index"
+        exec """singularity run  --bind $tmpDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif MarkDuplicates I=$input.bam O=$output.unsorted M=$output._dup_metrics.txt REMOVE_DUPLICATES=TRUE TMP_DIR=$tmpDirectory""", "markDuplicates"
+        exec """singularity run --bind $tmpDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools sort -@12 -O BAM -o $output.bam $output.unsorted""","align"
+        exec """ singularity run --bind $tmpDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bai""" , "index"
     }
 }
 
@@ -67,8 +70,7 @@ removeSuplementary = {
 
     branch.sample = branch.name
 
-    produce(sample + '.' + type + '.RSRD.bam', sample + '.' + type +  '.RSRD.bam.bai', sample + '.' + type + '._dup_metrics.txt') {
-	    println "$sample"
+    produce(sample + '.' + type + '.removeSupp.bam', sample + '.' + type +  '.removeSupp.bam.bai') {
 	    exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools view -@ $threads -b -F 2048 $input.bam > $output.bam""","removeSupplementary"
   	    exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bam.bai""","index"
 
@@ -96,17 +98,30 @@ markDuplicates = {
 
 }
 
-recalibrate = {
+samBlaster = {
     output.dir=intermediateDirectory
-    exec """ ../bin/gatk/gatk --java-options "-Xmx16G" BaseRecalibrator -R $bwaIndex -I $input.bam -O $output.table --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/dbsnp_138.hg19.vcf --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf""", "recalibrate"
-    exec """ ../bin/gatk/gatk --java-options "-Xmx16G" ApplyBQSR -R $bwaIndex -I $input.bam -bqsr $output.table -O $output.bam""", "recalibrate"
+    branch.sample=branch.name
+    produce(sample + ".markDuplicatesSB.bam", sample + ".markDuplicatesSB.bam.bai" ){
+        exec """
+            singularity run --bind $intermediateDirectory $singularityBuilds/samblaster.sif \
+            samtools sort -n -O SAM $input.bam | samblaster | samtools view -Sb - > $output.bam ""","samBlaster"
+        exec """singularity run --bind $intermediateDirectory $singularityBuilds/samtools-1.9.simg samtools index -@ $threads $output.bam $output.bai""" , "index"
+    }
 
 }
 
-haplotypeCalling = {
-    output.dir=intermediateDirectory
-    exec """/scale_wlg_persistent/filesets/project/uoa02606/bin/gatk/gatk --java-options "-Xmx32G" HaplotypeCaller -R $bwaIndex -I $input.bam -O $output.vcf""" ,"haplotyping"
-}
+//recalibrate = {
+//    output.dir=intermediateDirectory
+//    exec """ ../bin/gatk/gatk --java-options "-Xmx16G" BaseRecalibrator -R $bwaIndex -I $input.bam -O $output.table --known-sites /scale_wlg_persistent/filesets/project/uoa00571/new_pipeline/wes/data/references/gatk/Homo_sapiens_assembly38.dbsnp138.vcf --known-sites /scale_wlg_persistent/filesets/project/uoa00571/wes/data/references/gatk/Mills_and_1000G_gold_standard.indels.hg38.vcf""", "recalibrate"
+//    //exec """ ../bin/gatk/gatk --java-options "-Xmx16G" BaseRecalibrator -R $bwaIndex -I $input.bam -O $output.table --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/dbsnp_138.hg19.vcf --known-sites /scale_wlg_persistent/filesets/project/uoa02606/data/gatk/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf""", "recalibrate"
+//    exec """ ../bin/gatk/gatk --java-options "-Xmx16G" ApplyBQSR -R $bwaIndex -I $input.bam -bqsr $output.table -O $output.bam""", "recalibrate"
+
+//}
+
+//haplotypeCalling = {
+//    output.dir=intermediateDirectory
+//    exec """/scale_wlg_persistent/filesets/project/uoa02606/bin/gatk/gatk --java-options "-Xmx32G" HaplotypeCaller -R $bwaIndex -I $input.bam -O $output.vcf""" ,"haplotyping"
+//}
 
 
 
@@ -118,14 +133,16 @@ alignmentMetrics = {
     branch.sample=branch.name
 
     // for collecting % on target
-    //regions = "/nesi/project/uoa00571/data/design_files/S07604514_Regions.bed"
+//    regions = "/nesi/project/uoa00571/data/design_files/S07604514_Regions.bed"
 
-    regions = "/nesi/project/uoa02461/data/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
+    //regions = "/nesi/project/uoa02461/data/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
+    regions = "/nesi/project/uoa00571/data/references/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
     inputSample = intermediateDirectory + sample + '.' + type + '.bam'
 
     produce(sample + "." + type + ".AlignmentMetricsLog",  sample + "." + type + ".sampleHist.pdf", sample + "." + type + ".sampleMetrics.txt") {
     	//exec """ java -Xmx9G -jar /nesi/project/uoa00571/src/cpipe-master/tools/gatk/2.3.9/GenomeAnalysisTK.jar -T DepthOfCoverage -I $input.bam -R /nesi/project/uoa02461/data/hg19/ucsc.hg19.fasta -o $output  --omitDepthOutputAtEachBase --omitIntervalStatistics --omitLocusTable --printBaseCounts -L $regions -ct 1 -ct 10 -ct 30 -ct 50 -ct 100 -ct 200 > $output """, "alignmentMetrics"
 
+        //exec """singularity run --bind $qcDirectory --bind $GRCh38RefNoAltDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
         exec """singularity run --bind $qcDirectory --bind $hg19RefDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif CollectAlignmentSummaryMetrics I=$input.bam R=$bwaIndex O=$output.AlignmentMetricsLog""" , "alignmentMetrics"
 
     exec """singularity run --bind $qcDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/picard_latest.sif CollectInsertSizeMetrics I=$input O=$output.sampleMetrics.txt H=$output.sampleHist.pdf M=0.5""","collectMetrics"
@@ -160,8 +177,8 @@ adtex = {
     //regions = "$referenceDirectory/xgen-exome-research-panel-targetsae255a1532796e2eaa53ff00001c1b3c.bed"
     regions = "$referenceDirectory/adtex/S07604514_Regions_noname.bed"
     from(sample + '*.bam') {
-            //exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.removeDuplicates.bam --tumor $input.test.removeDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/adtex ""","pileUp"
-            //exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.markDuplicates.bam --tumor $input.test.markDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/adtex ""","pileUp"
+            //exec """singularity run --bind $GRCh38RefNoAltDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.removeDuplicates.bam --tumor $input.test.removeDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/adtex ""","pileUp"
+            //exec """singularity run --bind $GRCh38RefNoAltDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.markDuplicates.bam --tumor $input.test.markDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/adtex ""","pileUp"
             exec """singularity run --bind $referenceDirectory --bind $intermediateDirectory $singularityBuilds/adtex.simg --normal $input.control.markDuplicates.bam --tumor $input.test.markDuplicates.bam --bed $regions --out $intermediateDirectory/$sample/ ""","pileUp"
 
     }
@@ -172,20 +189,27 @@ adtex = {
 pileUp = {
     output.dir=intermediateDirectory
     branch.sample = branch.name
-    print("$sample")
     produce(sample + '.snp.vcf', sample + '.indel.vcf', sample + '.count', sample + '.pileup') {
-        from(sample + '*.bam') {
-            print("$input")
+        //from(sample + '*removeSupp.bam') {
+        from(sample + '*markDuplicates.bam') {
             // This is bad form, in as much as the stages are defined in the input filenames here rather than being added dynamimcally.   
             // It'd be really nice if someone could figure out how to fix that he said nonchalantly
+            //exec """singularity run --bind $GRCh38RefNoAltDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex -o $output.pileup  $input.control.markDuplicates.bam $input.test.markDuplicates.bam ""","pileUp"
+
+            // removeDuplicates
+            //exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex -o $output.pileup  $input.control.removeSupp.bam $input.test.removeSupp.bam ""","pileUp"
+            //exec """java -Xmx32g -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic $output.pileup --mpileup 2 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
+            //reference3KBedFile=hg19RefDirectory+"hg19.3kb.bed"
+            //reference3KBedFile=GRCh38RefNoAltDirectory+"GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.3kb.bed"
+            // exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate --bind $hg19RefDirectory $singularityBuilds/bedtools.sif bedtools multicov -bams $input.control.removeDuplicates.bam $input.test.removeDuplicates.bam  -bed $reference3KBedFile > $output.count """, "multicov"
+
+
+               // markDuplicates
             exec """singularity run --bind $hg19RefDirectory --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/samtools-1.9.simg samtools mpileup -P $threads -B -d 9001 -q 1 -f $bwaIndex -o $output.pileup  $input.control.markDuplicates.bam $input.test.markDuplicates.bam ""","pileUp"
             exec """ java -Xmx32g -jar /nesi/project/uoa00571/bin/VarScan.v2.4.3.jar somatic $output.pileup --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --mpileup --output-snp $output.snp.vcf --output-indel $output.indel.vcf""","pileUp"
-
-            //exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate $singularityBuilds/varscan-2.4.3.simg varscan somatic $output.pileup --mpileup 2 --min-var-freq 0.1 --p-value 1.00 --somatic-p-value 1.00 --strand-filter 0 --tumor-purity 0.5 --output-vcf 1 --min-coverage-normal 10 --min-coverage-tumor 10 --output-snp $output.snp.vcf  --output-indel $output.indel.vcf""","pileUp"
-
-               reference3KBedFile=hg19RefDirectory+"hg19.3kb.bed"
-               exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate --bind $hg19RefDirectory $singularityBuilds/bedtools.sif bedtools multicov -bams $input.control.markDuplicates.bam $input.test.markDuplicates.bam  -bed $reference3KBedFile > $output.count """, "multicov"
-
+            reference3KBedFile=hg19RefDirectory+"hg19.3kb.bed"
+            //exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate --bind $GRCh38RefNoAltDirectory $singularityBuilds/bedtools.sif bedtools multicov -bams $input.control.markDuplicates.bam $input.test.markDuplicates.bam  -bed $reference3KBedFile > $output.count """, "multicov"
+            exec """singularity run --bind $intermediateDirectory --bind $expandedIntermediate --bind $hg19RefDirectory $singularityBuilds/bedtools.sif bedtools multicov -bams $input.control.markDuplicates.bam $input.test.markDuplicates.bam  -bed $reference3KBedFile > $output.count """, "multicov"
 
 
 
@@ -203,19 +227,24 @@ annotation = {
     // Version 2 of our annotation
     produce(sample + ".annotated.snp.vcf", sample + ".annotated.indel.vcf"){
         from(sample + '*.snp.vcf') {
-            exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.snp.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+            //exec """perl table_annovar.pl $input.vcf $refData -buildver hg38 -outfile $output.annotated.snp.vcf -remove -protocol refGene,dbnsfp35c,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20200316,cosmic91,avsnp150,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad211_genome,gnomad211_exome,exac03,intervar_20180118,revel,dgvMerged  -operation g,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+            //exec """perl table_annovar.pl $input.vcf $refData -buildver hg38 -outfile $output.annotated.snp.vcf -remove -protocol refGene,dbnsfp35c,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20200316,cosmic82,avsnp150,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad211_genome,gnomad211_exome,exac03,intervar_20180118,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+            //exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.snp.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+            exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.snp.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp35c,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20200316,cosmic92,avsnp150,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad211_genome,gnomad211_exome,exac03,intervar_20180118,revel,dgvMerged -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r -nastring . -vcfinput --argument '-splicing_threshold 10 -exonicsplicing,,,,,,,,,,,,,,,,,' """, "annotation"
         }
         from(sample + '*.indel.vcf'){
-            exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.indel.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
-
+            //exec """perl table_annovar.pl $input.vcf $refData -buildver hg38 -outfile $output.annotated.indel.vcf -remove -protocol refGene,dbnsfp35c,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20200316,cosmic91,avsnp150,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad211_genome,gnomad211_exome,exac03,intervar_20180118,revel,dgvMerged  -operation g,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+            //exec """perl table_annovar.pl $input.vcf $refData -buildver hg38 -outfile $output.annotated.indel.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+            //exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.indel.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp30a,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20170130,cosmic82,avsnp147,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad_genome,gnomad_exome,exac03,intervar_20170202,revel,dgvMerged  -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r  -nastring . -vcfinput""", "annotation"
+            exec """perl table_annovar.pl $input.vcf $refData -buildver hg19 -outfile $output.annotated.indel.vcf -remove -protocol refGene,popfreq_max_20150413,dbnsfp35c,tfbsConsSites,targetScanS,genomicSuperDups,clinvar_20200316,cosmic92,avsnp150,rmsk,wgEncodeDacMapabilityConsensusExcludable,wgEncodeDukeMapabilityRegionsExcludable,gnomad211_genome,gnomad211_exome,exac03,intervar_20180118,revel,dgvMerged -operation g,f,f,r,r,r,f,f,f,r,r,r,f,f,f,f,f,r -nastring . -vcfinput --argument '-splicing_threshold 10 -exonicsplicing,,,,,,,,,,,,,,,,,' """, "annotation"
         }
     }
 }
 
 // filter out mutations found in dbsnp150
-filterdbSnp150 = {
+filterdbSnp151 = {
     output.dir=$intermediateDirectory
-    exec "bedtools intersect -v  -a $input.vcf -b $dbSnp150 > $output.vcf"
+    exec "bedtools intersect -v  -a $input.vcf -b $dbSnp151 > $output.vcf"
 }
 
 

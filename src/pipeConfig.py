@@ -1,12 +1,22 @@
-baseDirectory = "/blue/project/cancer-seq-pipeline/"
-dataDirectory = "/blue/project/cancer-seq-pipeline/data/raw/wes/"
-intermediateDirectory = "/blue/project/cancer-seq-pipeline/data/intermediate/"
-qcDirectory = "/blue/project/cancer-seq-pipeline/data/intermediate/qc"
+baseDirectory = "/nesi/project/uoa00571/"
+intermediateDirectory = "/nesi/project/uoa00571/projects/merkels/data/intermediate/"
+qcDirectory = "/nesi/project/uoa00571/projects/merkels/data/intermediate/"
+tmpDirectory="/scale_wlg_persistent/filesets/project/uoa00571/projects/merkels/data/intermediate/tmp/"
+resultsDirectory ="/nesi/project/uoa00571/projects/merkels/data/results/"
+dataDirectory="/nesi/nobackup/uoa00571/merkel/raw/HN00108987/"
+qcDirectory ="/nesi/project/uoa00571/projects/merkels/data/intermediate/"
+expandedIntermediate="/scale_wlg_persistent/filesets/project/uoa00571/projects/merkels/data/intermediate/"
 
-bwaIndex= "/blue/project/cancer-seq-pipeline/data/references/hg19/ucsc.hg19.fasta"
+sigh="/scale_wlg_persistent/filesets/project/uoa00571/projects/merkels/data/intermediate/"
 
-referenceDirectory="/blue/project/cancer-seq-pipeline/data/references/"
-hg19RefDirectory="/blue/project/cancer-seq-pipeline/data/references/hg19/"
-
-
-
+#singularityBuilds="/nesi/project/uoa02461/bin/"
+singularityBuilds="/nesi/project/uoa00571/bin/"
+#bwaIndex= "/nesi/project/uoa00571/data/references/genomes/ncbi/hg38litehs38d1/GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fna"
+bwaIndex= "/nesi/project/uoa00571/data/references/hg19/ucsc.hg19.fasta"
+referenceDirectory="/nesi/project/uoa00571/data/references/"
+#GRCh38RefNoAltDirectory="/nesi/project/uoa00571/data/references/genomes/ncbi/hg38litehs38d1/"
+hg19RefDirectory="/nesi/project/uoa00571/data/references/hg19/"
+#dbSnp151 = "/nesi/project/uoa00571/merkles_RD/data/references/dbsnp/db151_GRCh38p7/00-All.vcf.gz"
+#refData="/nesi/project/uoa00571/merkles_RD/data/references/annovar/hg38/"
+#refData="/nesi/project/uoa00571/data/references/annovar/hg19/"
+refData="/nesi/project/uoa00571/data/references/annovar/hg19_2020/"

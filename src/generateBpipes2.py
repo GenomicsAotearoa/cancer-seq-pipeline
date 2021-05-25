@@ -69,11 +69,25 @@ def main(argv):
     #workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates  ], samples *  [trim + align.using(type:'test') + markDuplicates  ]] + samples * [pileUp] + samples *[annotation] + samples * [count] + samples *[reportGeneration] } \n\n "
 
     # ADTex run
-    workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates.using(type:'control')  ], samples *  [trim + align.using(type:'test') + markDuplicates.using(type:'test')  ]] + samples * [pileUp] + samples *[annotation] + samples *[adtex]  } \n\n "
+    ## use # workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates.using(type:'control')  ], samples *  [trim + align.using(type:'test') + markDuplicates.using(type:'test')  ]] + samples * [pileUp] + samples *[annotation] + samples *[adtex]  } \n\n "
     #workflow = "run { [  control * [trim + align.using(type:'control') + markDuplicates  ], samples *  [trim + align.using(type:'test') + markDuplicates  ]] + samples * [pileUp] + samples *[annotation] + samples *[adtex]  } \n\n "
 
     #//QC run
    # workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') +  alignmentMetrics.using(type:'test') ]] }\n \n\n run{ [control * [qc] + control * [trim + qc], samples * [qc] + samples *  [trim + qc]]}"
+
+
+    # 17/07/2020 Use
+    #workflow = "run{ control * [qc] + control * [trim +  align.using(type:'control') + alignmentMetrics.using(type:'control')] }\nrun{ samples * [qc] + samples * [trim +  align.using(type:'test') + alignmentMetrics.using(type:'test')] }\nrun { [ control * [trim + align.using(type:'control') + markDuplicates.using(type:'control')  ], samples *  [trim + align.using(type:'test') + markDuplicates.using(type:'test')  ]] + samples * [pileUp] + samples *[annotation] } \n\n "
+    #workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + markDuplicates.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') + markDuplicates.using(type:'test') + alignmentMetrics.using(type:'test') ]] }\n \n\n run{ [control * [qc] + control * [trim + qc], samples * [qc] + samples *  [trim + qc]]}"
+
+    # Remove supplementary
+    #workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + removeDuplicates.using(type:'control') + removeSuplementary.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') + removeDuplicates.using(type:'test') + removeSuplementary.using(type:'test') + alignmentMetrics.using(type:'test') ]] }\n \n\n run{ [control * [qc] + control * [trim + qc], samples * [qc] + samples *  [trim + qc]]}"
+    # USE THIS (Nov 2020)
+    #workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + removeDuplicates.using(type:'control') + removeSuplementary.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') + removeDuplicates.using(type:'test') + removeSuplementary.using(type:'test') + alignmentMetrics.using(type:'test') ]] + samples * [pileUp] + samples *[annotation] }"
+    #workflow = "run{ [ control * [trim], samples *  [trim] ] }"
+
+    # mark Duplicates
+    workflow = "run{ [control * [qc] + control * [trim +  align.using(type:'control') + markDuplicates.using(type:'control') + alignmentMetrics.using(type:'control')]  , samples * [qc] + samples *  [trim +  align.using(type:'test') + markDuplicates.using(type:'test') + alignmentMetrics.using(type:'test') ]] + samples * [pileUp] + samples *[annotation] }"
 
     for index, row in df.iterrows():
         patient = row["patient"]
@@ -95,6 +109,7 @@ def main(argv):
             pipelineFile.write("bwaIndex =\"" + bwaIndex + "\"\n")
             pipelineFile.write("referenceDirectory =\"" + referenceDirectory + "\"\n")
             pipelineFile.write("hg19RefDirectory =\"" + hg19RefDirectory + "\"\n")
+            #pipelineFile.write("GRCh38RefNoAltDirectory =\"" + GRCh38RefNoAltDirectory + "\"\n")
             pipelineFile.write("refData =\"" + refData + "\"\n")
             pipelineFile.write("resultsDirectory=\"" + resultsDirectory + "\"\n")
 			
